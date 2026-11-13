@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Card, Notice, Pill } from '@/components/ui/surface';
 import {
@@ -29,6 +29,24 @@ export function ProductListClient() {
   const products = useMemo(() => parseProductsSnapshot(snapshot), [snapshot]);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deleteFailed, setDeleteFailed] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+  const [focusTick, setFocusTick] = useState(0);
+  const pendingFocus = useRef<{ kind: 'judul' } | { kind: 'hapus'; id: string } | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  function moveFocus(target: { kind: 'judul' } | { kind: 'hapus'; id: string }) {
+    pendingFocus.current = target;
+    setFocusTick((tick) => tick + 1);
+  }
+
+  // Fokus dipindah setelah render supaya targetnya sudah ada di DOM.
+  useEffect(() => {
+    const target = pendingFocus.current;
+    pendingFocus.current = null;
+    if (!target) return;
+    if (target.kind === 'judul') headingRef.current?.focus();
+    else document.getElementById(hapusButtonId(target.id))?.focus();
+  }, [focusTick]);
 
   const loading = snapshot === LOADING_SNAPSHOT;
   const unavailable = snapshot === STORAGE_UNAVAILABLE_SNAPSHOT;
@@ -37,6 +55,17 @@ export function ProductListClient() {
     const ok = deleteProduct(id);
     setDeleteFailed(!ok);
     setConfirmId(null);
+    if (ok) {
+      setAnnouncement('Produk dihapus');
+      moveFocus({ kind: 'judul' });
+    } else {
+      moveFocus({ kind: 'hapus', id });
+    }
+  }
+
+  function handleCancel(id: string) {
+    setConfirmId(null);
+    moveFocus({ kind: 'hapus', id });
   }
 
   return (
@@ -47,6 +76,14 @@ export function ProductListClient() {
         Cetak atau simpan hasil sebagai PDF bila perlu salinan.
       </Notice>
 
+      <h2 ref={headingRef} tabIndex={-1} className="sr-only focus:outline-none">
+        Daftar produk saya
+      </h2>
+
+      <div aria-live="polite" role="status" className="sr-only">
+        {announcement}
+      </div>
+
       <div aria-live="polite">
         {deleteFailed && (
           <Notice tone="warning" title="Produk belum terhapus">
@@ -55,7 +92,9 @@ export function ProductListClient() {
         )}
       </div>
 
-      {loading && <p className="text-sm text-ink-2">Memuat daftar produk...</p>}
+      {loading && <p className="text-sm text-ink-2" role="status">
+          Memuat daftar produk…
+        </p>}
 
       {unavailable && (
         <Notice tone="warning" title="Penyimpanan tidak tersedia di peramban ini">
@@ -91,7 +130,7 @@ export function ProductListClient() {
                   product={product}
                   confirming={confirmId === product.id}
                   onAskDelete={() => setConfirmId(product.id)}
-                  onCancelDelete={() => setConfirmId(null)}
+                  onCancelDelete={() => handleCancel(product.id)}
                   onConfirmDelete={() => handleDelete(product.id)}
                 />
               </li>
@@ -101,6 +140,10 @@ export function ProductListClient() {
       )}
     </div>
   );
+}
+
+function hapusButtonId(id: string): string {
+  return `hapus-produk-${id}`;
 }
 
 function ProductCard({
@@ -173,6 +216,7 @@ function ProductCard({
             <Button
               variant="secondary"
               size="md"
+              id={hapusButtonId(product.id)}
               onClick={onAskDelete}
               aria-label={`Hapus ${product.nama}`}
             >

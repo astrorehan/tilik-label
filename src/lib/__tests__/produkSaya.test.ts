@@ -4,6 +4,7 @@ import type { AdditionalAnswers, LabelData } from '@/domain';
 import {
   MAX_SAVED_PRODUCTS,
   NAMA_PRODUK_KOSONG,
+  PRODUK_SAYA_CADANGAN_KEY,
   PRODUK_SAYA_KEY,
   deleteProduct,
   getProduct,
@@ -85,7 +86,7 @@ describe('parseProductList', () => {
       { id: 'tanpa-label' },
       makeProduct({ id: '' }),
       makeProduct({ id: 'tgl-rusak', diperbaruiPada: 'bukan tanggal' }),
-      { ...makeProduct({ id: 'label-rusak' }), label: { namaProduk: 5 } },
+      { ...makeProduct({ id: 'label-bukan-objek' }), label: 'x' },
       { ...makeProduct({ id: 'jawaban-rusak' }), answers: { resep: 'x' } },
       { ...makeProduct({ id: 'resep-rusak' }), answers: makeAnswers({ resep: [{ nama: 'a', jumlahGram: NaN }] }) },
     ]);
@@ -94,8 +95,17 @@ describe('parseProductList', () => {
 
   it('menolak bidang opsional yang salah tipe', () => {
     const bad = { ...makeProduct({ id: 'x' }), answers: { ...makeAnswers(), alatProduksi: 'roket' } };
-    const bad2 = { ...makeProduct({ id: 'y' }), label: { ...makeLabel(), unreadableFields: ['bukanField'] } };
-    expect(parseProductList([bad, bad2])).toEqual([]);
+    expect(parseProductList([bad])).toEqual([]);
+  });
+
+  it('mengisi bidang teks label yang hilang dengan string kosong', () => {
+    const raw = { ...makeProduct({ id: 'sebagian' }), label: { namaProduk: 'Dodol', pernyataanLain: 'x', unreadableFields: ['bukanField', 'namaProduk'] } };
+    const [product] = parseProductList([raw]);
+    expect(product?.nama).toBe('Dodol');
+    expect(product?.label.daftarBahanTeks).toBe('');
+    expect(product?.label.caraPenyimpananTeks).toBe('');
+    expect(product?.label.pernyataanLain).toEqual([]);
+    expect(product?.label.unreadableFields).toEqual(['namaProduk']);
   });
 
   it('mengisi bidang jawaban opsional yang hilang dengan null', () => {
@@ -299,6 +309,38 @@ describe('fungsi akses penyimpanan', () => {
     const result = saveProductResult({ label: makeLabel(), answers: makeAnswers() }, storage, new Date(), nextId);
     expect(result).toEqual({ ok: false, reason: 'batas_penuh' });
     expect(listProducts(storage)).toHaveLength(MAX_SAVED_PRODUCTS);
+  });
+});
+
+describe('cadangan data mentah', () => {
+  it('menyimpan JSON lama sebelum menimpa daftar yang memuat entri rusak', () => {
+    const storage = memoryStorage();
+    const raw = JSON.stringify([makeProduct({ id: 'ok' }), { id: 'rusak' }]);
+    storage.setItem(PRODUK_SAYA_KEY, raw);
+    expect(saveProduct({ label: makeLabel(), answers: makeAnswers() }, storage)).not.toBeNull();
+    expect(storage.getItem(PRODUK_SAYA_CADANGAN_KEY)).toBe(raw);
+  });
+
+  it('tidak menimpa cadangan yang sudah ada', () => {
+    const storage = memoryStorage();
+    storage.setItem(PRODUK_SAYA_CADANGAN_KEY, 'cadangan-lama');
+    storage.setItem(PRODUK_SAYA_KEY, JSON.stringify([makeProduct({ id: 'ok' }), 7]));
+    expect(deleteProduct('ok', storage)).toBe(true);
+    expect(storage.getItem(PRODUK_SAYA_CADANGAN_KEY)).toBe('cadangan-lama');
+  });
+
+  it('mencadangkan JSON rusak sebelum ditimpa', () => {
+    const storage = memoryStorage();
+    storage.setItem(PRODUK_SAYA_KEY, '{bukan json');
+    saveProduct({ label: makeLabel(), answers: makeAnswers() }, storage);
+    expect(storage.getItem(PRODUK_SAYA_CADANGAN_KEY)).toBe('{bukan json');
+  });
+
+  it('tidak membuat cadangan bila semua entri sah atau data kosong', () => {
+    const storage = memoryStorage();
+    saveProduct({ label: makeLabel(), answers: makeAnswers() }, storage);
+    saveProduct({ label: makeLabel({ namaProduk: 'B' }), answers: makeAnswers() }, storage);
+    expect(storage.getItem(PRODUK_SAYA_CADANGAN_KEY)).toBeNull();
   });
 });
 

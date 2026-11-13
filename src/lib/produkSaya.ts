@@ -76,23 +76,20 @@ function isIsoDate(value: unknown): value is string {
 function parseLabel(raw: unknown): LabelData | null {
   if (!isRecord(raw)) return null;
   const label: Record<string, unknown> = {};
+  // Bidang teks yang hilang atau salah tipe diisi kosong supaya produk tetap terbuka.
   for (const key of LABEL_STRING_KEYS) {
-    if (typeof raw[key] !== 'string') return null;
-    label[key] = raw[key];
+    label[key] = typeof raw[key] === 'string' ? raw[key] : '';
   }
   const claims = raw.pernyataanLain;
-  if (!Array.isArray(claims) || !claims.every((item) => typeof item === 'string')) return null;
-  label.pernyataanLain = [...(claims as string[])];
+  label.pernyataanLain = Array.isArray(claims)
+    ? claims.filter((item): item is string => typeof item === 'string')
+    : [];
 
   const unreadable = raw.unreadableFields;
   if (unreadable !== undefined) {
-    if (
-      !Array.isArray(unreadable) ||
-      !unreadable.every((k) => typeof k === 'string' && FIELD_KEYS.includes(k))
-    ) {
-      return null;
-    }
-    label.unreadableFields = [...(unreadable as LabelFieldKey[])];
+    label.unreadableFields = Array.isArray(unreadable)
+      ? (unreadable.filter((k) => typeof k === 'string' && FIELD_KEYS.includes(k)) as LabelFieldKey[])
+      : [];
   }
   return label as unknown as LabelData;
 }
@@ -316,6 +313,36 @@ export function parseProductsSnapshot(snapshot: string): SavedProduct[] {
   }
 }
 
+/** Kunci cadangan data mentah lama sebelum entri rusak ditimpa. */
+export const PRODUK_SAYA_CADANGAN_KEY = `${PRODUK_SAYA_KEY}:cadangan`;
+
+/** True bila menulis ulang daftar akan membuang sesuatu dari data mentah. */
+function wouldLoseData(text: string): boolean {
+  if (text.trim() === '') return false;
+  try {
+    const raw: unknown = JSON.parse(text);
+    if (!Array.isArray(raw)) return true;
+    return parseProductList(raw).length < raw.length;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Menyalin JSON mentah lama ke kunci cadangan bila ada entri yang akan
+ * terbuang. Hanya ditulis sekali; cadangan yang sudah ada tidak ditimpa.
+ */
+function backupRawIfLossy(storage: StorageLike): void {
+  const text = readRaw(PRODUK_SAYA_KEY, storage);
+  if (text === null || !wouldLoseData(text)) return;
+  if (readRaw(PRODUK_SAYA_CADANGAN_KEY, storage) !== null) return;
+  try {
+    storage.setItem(PRODUK_SAYA_CADANGAN_KEY, text);
+  } catch {
+    // penyimpanan penuh: lanjutkan tanpa cadangan
+  }
+}
+
 export function listProducts(storage?: StorageLike | null): SavedProduct[] {
   return readJson(PRODUK_SAYA_KEY, parseProductList, storage) ?? [];
 }
@@ -339,6 +366,7 @@ export function saveProductResult(
   if (!target) return { ok: false, reason: 'tidak_tersedia' };
   const { list, product } = upsertProduct(listProducts(target), input, now, makeId);
   if (!product) return { ok: false, reason: 'batas_penuh' };
+  backupRawIfLossy(target);
   if (!writeJson(PRODUK_SAYA_KEY, list, target)) return { ok: false, reason: 'gagal_tulis' };
   notify();
   return { ok: true, product };
@@ -355,6 +383,7 @@ export function deleteProduct(id: string, storage?: StorageLike | null): boolean
   if (!target) return false;
   const current = listProducts(target);
   if (!current.some((item) => item.id === id)) return false;
+  backupRawIfLossy(target);
   const ok = writeJson(PRODUK_SAYA_KEY, removeProduct(current, id), target);
   if (ok) notify();
   return ok;

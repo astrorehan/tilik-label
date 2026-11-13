@@ -56,7 +56,12 @@ export function SaveProductButton({ label, answers, productId, onSaved }: SavePr
 
       <div aria-live="polite" className="w-full">
         {state.kind === 'saved' && (
-          <Notice tone="success" title={`"${state.product.nama}" tersimpan di perangkat ini`}>
+          <Notice tone="success" title={
+              <span className="break-words [overflow-wrap:anywhere]">
+                &quot;{state.product.nama}&quot; tersimpan di perangkat ini
+              </span>
+            }
+          >
             <Link href="/produk" className="font-semibold text-brand-deep underline underline-offset-2">
               Lihat di Produk saya
             </Link>
