@@ -275,6 +275,7 @@ describe('I-08 jenis pangan Lampiran I (Pasal 5 dan 9)', () => {
       }),
     );
     expect(result.hasil).toBe('bisa_spp_irt');
+    expect(result.alasan).toHaveLength(1);
     expect(result.perluDicek).toHaveLength(1);
     expect(result.perluDicek[0]).toMatch(/Lampiran I/);
     expect(result.rujukan).toContainEqual({
@@ -285,6 +286,14 @@ describe('I-08 jenis pangan Lampiran I (Pasal 5 dan 9)', () => {
 });
 
 describe('kombinasi dan urutan penentuan', () => {
+  it('syarat yang belum dipastikan disebut dalam alasan hasil "bisa lewat SPP-IRT"', () => {
+    const result = evaluatePermitPath(makeLabel(), makeAnswers());
+    expect(result.hasil).toBe('bisa_spp_irt');
+    expect(result.judul).toMatch(/^Kemungkinan bisa/);
+    expect(result.alasan[1]).toMatch(/4 syarat yang belum dipastikan/);
+    expect(result.perluDicek).toHaveLength(5);
+  });
+
   it('umur simpan kosong didahulukan walau ada penghalang, karena produk mungkin dikecualikan', () => {
     const result = evaluatePermitPath(
       makeLabel({ pernyataanLain: ['Rendah lemak'] }),
