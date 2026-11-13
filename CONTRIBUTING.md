@@ -43,6 +43,6 @@ Jika perlu mengubah kontrak tipe data di `src/domain/types.ts`, koordinasikan du
 Pastikan seluruh pemeriksaan berikut lulus di lokal sebelum mengajukan PR:
 
 - Pemeriksaan linter (`npm run lint`)
-- Pemeriksaan tipe TypeScript (`npx tsc --noEmit`)
+- Pemeriksaan tipe TypeScript (`npm run typecheck`)
 - Seluruh unit test (`npm test`)
 - Build produksi (`npm run build`) jika menyentuh routing atau konfigurasi Next.js

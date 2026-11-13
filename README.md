@@ -8,13 +8,14 @@ Karya ini disiapkan untuk IT RUSH 2026, cabang Web Development, subtema Ekonomi 
 
 ## Status
 
-Repo ini baru berisi dokumen. Belum ada kode aplikasi dan belum ada alamat situs.
+Kerangka aplikasi awal, pemeriksa aturan label (`L-01` sampai `L-20`) dengan unit test, serta halaman depan, contoh, dan periksa manual sudah tersedia.
 
 | Bagian | Keadaan |
 | :-- | :-- |
 | Dokumen kebutuhan produk | Ada, lihat [docs/PRD.md](docs/PRD.md) |
-| Pemeriksa aturan label | Belum dibuat |
-| Pembaca foto label | Belum dibuat |
+| Pemeriksa aturan label (`L-01`–`L-20`) | Tersedia dengan unit test di `src/domain` |
+| Halaman depan, contoh, & periksa manual | Tersedia (`/`, `/contoh`, `/periksa`) |
+| Pembaca foto label & jalur izin | Belum dibuat |
 | Situs publik | Belum ada |
 
 ## Masalah yang dijawab
