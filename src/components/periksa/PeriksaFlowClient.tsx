@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { AssistantBox, RuleAssistant } from '@/components/asisten/AssistantBox';
 import { LabelReportView } from '@/components/LabelReportView';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/surface';
@@ -210,7 +211,20 @@ function ResultStep({
   return (
     <div className="space-y-6">
       <PermitPathView result={permit} />
-      <LabelReportView report={report} productTitle={label.namaProduk || 'Label tanpa nama'} />
+      <AssistantBox
+        label={label}
+        answers={answers}
+        title="Ada yang belum jelas? Tanyakan ke asisten tentang hasil ini."
+      />
+      <LabelReportView
+        report={report}
+        productTitle={label.namaProduk || 'Label tanpa nama'}
+        renderRuleExtra={(item) =>
+          item.status === 'lengkap' ? null : (
+            <RuleAssistant label={label} answers={answers} ruleId={item.id} />
+          )
+        }
+      />
       <div className="flex flex-col gap-2.5 sm:flex-row">
         <Button variant="secondary" size="lg" icon="edit" onClick={onEditLabel}>
           Ubah isi label
