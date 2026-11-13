@@ -23,23 +23,23 @@ export interface SampleLabelCase {
 export const SAMPLE_LABEL_CASES: SampleLabelCase[] = [
   {
     id: "kue-kering-tampak-lengkap",
-    judul: 'Kue Kering Kacang "Dapur Sari" (Contoh Rekaan)',
+    judul: 'Kue Kering Kacang "Dapur Contoh" (Contoh Rekaan)',
     kategori: "Tampak lengkap, gagal di urutan bahan, alergen, dan klaim",
     ringkasanSingkat:
-      'Semua keterangan pokok sudah tertulis, namun gula ditulis sebelum tepung padahal takaran tepung lebih banyak (L-03), kalimat alergen belum sesuai Pasal 51 (L-12), dan kata "Murni" dipakai pada produk campuran (L-18).',
+      'Sekilas lengkap, tetapi urutan bahannya keliru: gula ditulis sebelum tepung dan kacang padahal takarannya lebih sedikit. Kalimat alergen belum memakai bunyi resmi, dan kata "Murni" kurang tepat untuk kue campuran.',
     label: {
       ...createEmptyLabelData(),
       namaProduk: "Kue Kering Kacang Murni",
       daftarBahanTeks:
         "Komposisi: gula halus, tepung terigu, kacang tanah, telur, minyak nabati, garam.",
       beratBersihTeks: "Berat bersih: 250 g",
-      namaProdusen: "Dapur Sari Rumahan",
-      alamatProdusen: "Jl. Kenanga No. 8, Kota Semarang 50131, Indonesia",
-      keteranganHalalTeks: "Halal Indonesia ID33110000987650425",
-      kodeProduksiTeks: "KS-131126",
+      namaProdusen: "Dapur Contoh Rekaan",
+      alamatProdusen: "Jl. Contoh No. 1, Kota Semarang 50131, Indonesia",
+      keteranganHalalTeks: "Halal Indonesia ID00000000000000000",
+      kodeProduksiTeks: "KC-131126",
       tanggalProduksiTeks: "13 Nov 2026",
       kedaluwarsaTeks: "Baik digunakan sebelum: 13 Jan 2027",
-      nomorIzinTeks: "P-IRT 2063374010456-29",
+      nomorIzinTeks: "P-IRT 0000000000000-00",
       pernyataanAlergenTeks: "Mengandung kacang tanah.",
       caraPenyimpananTeks: "Simpan di wadah tertutup rapat dan tempat kering.",
       pernyataanLain: ["Tanpa pengawet"],
@@ -63,24 +63,24 @@ export const SAMPLE_LABEL_CASES: SampleLabelCase[] = [
   },
   {
     id: "sambal-bawang-rumahan",
-    judul: 'Sambal Bawang "Ibu Wati" (Contoh Rekaan)',
+    judul: 'Sambal Bawang "Contoh" (Contoh Rekaan)',
     kategori:
       "Banyak butir kurang: format, singkatan, halal, dan klaim bahan tambahan",
     ringkasanSingkat:
-      'Daftar bahan tanpa awalan "Komposisi" dan memakai singkatan (L-02, L-04), satuan "gram" tidak baku (L-05), alamat tanpa kata Indonesia (L-06), "Halal" tanpa sertifikat (L-07), tanggal produksi kosong (L-08), kedaluwarsa "Exp: Des 2026" (L-09, L-10), "PIRT" salah tulis (L-11), "Tanpa pengawet" padahal memakai natrium benzoat (L-16), "Bebas bahan tambahan pangan" (L-17), dan cara simpan kosong (L-19).',
+      'Banyak yang kurang: penulisan bahan dan satuan tidak baku, tanggal produksi kosong, tulisan halal tanpa sertifikat, dan klaim "tanpa pengawet" padahal memakai pengawet.',
     label: {
       ...createEmptyLabelData(),
       namaProduk: "Sambal Bawang Rumahan",
       daftarBahanTeks:
         "cabai rawit, bawang mrh., minyak goreng, garam, MSG, natrium benzoat.",
       beratBersihTeks: "150 gram",
-      namaProdusen: "Usaha Ibu Wati",
-      alamatProdusen: "Kota Yogyakarta 55111",
+      namaProdusen: "Usaha Contoh Rekaan",
+      alamatProdusen: "Jl. Contoh No. 2, Kota Yogyakarta 55111",
       keteranganHalalTeks: "Halal",
       kodeProduksiTeks: "Batch 04",
       tanggalProduksiTeks: "",
       kedaluwarsaTeks: "Exp: Des 2026",
-      nomorIzinTeks: "PIRT 2113471010012",
+      nomorIzinTeks: "PIRT 0000000000000",
       pernyataanAlergenTeks: "",
       caraPenyimpananTeks: "",
       pernyataanLain: ["Tanpa pengawet", "Bebas bahan tambahan pangan"],
@@ -117,23 +117,23 @@ export const SAMPLE_LABEL_CASES: SampleLabelCase[] = [
   },
   {
     id: "kerupuk-ikan-klaim-gizi",
-    judul: 'Kerupuk Ikan Tenggiri "Sari Laut" (Contoh Rekaan)',
+    judul: 'Kerupuk Ikan Tenggiri "Laut Contoh" (Contoh Rekaan)',
     kategori: "Rapi di bentuk, tetapi memuat klaim kesehatan dan gizi",
     ringkasanSingkat:
-      'Bahan, alergen, tanggal, dan izin sudah benar. Kesalahannya ada di klaim: "menyehatkan" dilarang (L-15), cara simpan belum ditulis (L-19), dan klaim "tinggi protein" membuat produk tidak bisa lewat jalur SPP-IRT (Pasal 10).',
+      'Bahan, alergen, tanggal, dan izin sudah benar. Masalahnya ada pada klaim "menyehatkan" dan "tinggi protein", serta cara simpan yang belum ditulis.',
     label: {
       ...createEmptyLabelData(),
       namaProduk: "Kerupuk Ikan Tenggiri",
       daftarBahanTeks:
         "Komposisi: tapioka, ikan tenggiri, telur ayam, bawang putih, gula pasir, garam.",
       beratBersihTeks: "Berat bersih: 200 g",
-      namaProdusen: "Kelompok Usaha Sari Laut",
-      alamatProdusen: "Jl. Pelabuhan No. 4, Kota Cirebon 45112, Indonesia",
-      keteranganHalalTeks: "Halal Indonesia ID32110000443210824",
-      kodeProduksiTeks: "SL-131126",
+      namaProdusen: "Kelompok Usaha Contoh Rekaan",
+      alamatProdusen: "Jl. Contoh No. 3, Kota Cirebon 45112, Indonesia",
+      keteranganHalalTeks: "Halal Indonesia ID00000000000000000",
+      kodeProduksiTeks: "LC-131126",
       tanggalProduksiTeks: "13 Nov 2026",
       kedaluwarsaTeks: "Baik digunakan sebelum: 13 Mei 2027",
-      nomorIzinTeks: "P-IRT 2023274010089-29",
+      nomorIzinTeks: "P-IRT 0000000000000-00",
       pernyataanAlergenTeks:
         "Mengandung alergen, lihat daftar bahan yang dicetak tebal.",
       caraPenyimpananTeks: "",

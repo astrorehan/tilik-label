@@ -85,7 +85,7 @@ export default function HomePage() {
       <main id="main-content">
         <section className="px-3 pt-2 sm:px-5 lg:px-6">
           <div className="hero-canvas relative mx-auto flex max-w-[84rem] flex-col items-center rounded-[32px] px-4 pt-12 text-center sm:px-8 sm:pt-16 lg:rounded-[40px] lg:pt-20">
-            <Pill tone="ink" dot>
+            <Pill tone="ink" dot className="max-w-full whitespace-normal! py-1.5 text-center leading-snug!">
               Pemeriksa label pangan rumahan · Cek dulu, baru cetak
             </Pill>
 
@@ -137,7 +137,7 @@ export default function HomePage() {
                 <div className="space-y-3 rounded-[18px] bg-paper p-4 lg:col-span-5">
                   <p className="text-xs font-semibold text-ink-3">Cuplikan isi label</p>
                   <p className="text-sm font-semibold text-ink">{sampleCase.label.namaProduk}</p>
-                  <p className="text-xs leading-relaxed text-ink-2">
+                  <p className="break-words text-xs leading-relaxed text-ink-2">
                     {sampleCase.ringkasanSingkat}
                   </p>
                   <div className="space-y-1.5 border-t border-line pt-3 text-xs">

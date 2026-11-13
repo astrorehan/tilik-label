@@ -61,6 +61,21 @@ export function SampleSelectorClient({ cases }: SampleSelectorClientProps) {
 
   const report = evaluateLabelRules(activeCase.label, activeCase.answers);
   const permitResult = evaluatePermitPath(activeCase.label, activeCase.answers);
+  const { label } = activeCase;
+  const labelFields = [
+    { label: "Nama produk", value: label.namaProduk },
+    { label: "Daftar bahan", value: label.daftarBahanTeks },
+    { label: "Berat / isi bersih", value: label.beratBersihTeks },
+    { label: "Nama produsen", value: label.namaProdusen },
+    { label: "Alamat produsen", value: label.alamatProdusen },
+    { label: "Keterangan halal", value: label.keteranganHalalTeks },
+    { label: "Kode produksi", value: label.kodeProduksiTeks },
+    { label: "Tanggal produksi", value: label.tanggalProduksiTeks },
+    { label: "Kedaluwarsa", value: label.kedaluwarsaTeks },
+    { label: "Nomor izin", value: label.nomorIzinTeks },
+    { label: "Pernyataan alergen", value: label.pernyataanAlergenTeks },
+    { label: "Cara penyimpanan", value: label.caraPenyimpananTeks },
+  ];
   const sortedRecipe = activeCase.answers.resep
     .slice()
     .sort((a, b) => b.jumlahGram - a.jumlahGram);
@@ -77,7 +92,7 @@ export function SampleSelectorClient({ cases }: SampleSelectorClientProps) {
               onClick={() => setSelectedId(item.id)}
               aria-pressed={isSelected}
               className={cn(
-                "flex flex-col items-start rounded-[20px] p-5 text-left transition-[border-color,background-color] duration-150",
+                "flex flex-col items-start rounded-[20px] p-5 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand transition-[border-color,background-color] duration-150",
                 isSelected
                   ? "border-2 border-brand bg-brand-tint/45"
                   : "border border-line bg-surface hover:border-line-strong",
@@ -107,56 +122,44 @@ export function SampleSelectorClient({ cases }: SampleSelectorClientProps) {
             </div>
           </div>
 
+          <div className="rounded-[18px] border border-line bg-paper p-4">
+            <p className="type-eyebrow text-xs">Tulisan di kemasan</p>
+            <dl className="mt-2 divide-y divide-line text-sm">
+              {labelFields.map((field) => (
+                <div key={field.label} className="py-2.5 first:pt-0 last:pb-0">
+                  <dt className="text-xs font-semibold text-ink-3">
+                    {field.label}
+                  </dt>
+                  <dd className="mt-0.5 break-words text-ink">
+                    {field.value.trim() ? (
+                      field.value
+                    ) : (
+                      <span className="text-ink-3">(tidak ada)</span>
+                    )}
+                  </dd>
+                </div>
+              ))}
+              <div className="py-2.5 last:pb-0">
+                <dt className="text-xs font-semibold text-ink-3">
+                  Pernyataan lain (klaim)
+                </dt>
+                <dd className="mt-0.5 break-words text-ink">
+                  {activeCase.label.pernyataanLain.length > 0 ? (
+                    <ul className="list-disc space-y-0.5 pl-4">
+                      {activeCase.label.pernyataanLain.map((klaim) => (
+                        <li key={klaim}>{klaim}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-ink-3">(tidak ada)</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
           <dl className="divide-y divide-line text-sm">
             <div className="py-3 first:pt-0">
-              <dt className="text-xs font-semibold text-ink-3">Nama produk</dt>
-              <dd className="mt-1 text-ink">
-                {activeCase.label.namaProduk || "-"}
-              </dd>
-            </div>
-            <div className="py-3">
-              <dt className="text-xs font-semibold text-ink-3">Daftar bahan</dt>
-              <dd className="mt-1 text-ink">
-                {activeCase.label.daftarBahanTeks || "-"}
-              </dd>
-            </div>
-            <div className="py-3">
-              <dt className="text-xs font-semibold text-ink-3">
-                Berat / isi bersih
-              </dt>
-              <dd className="mt-1 text-ink">
-                {activeCase.label.beratBersihTeks || "-"}
-              </dd>
-            </div>
-            <div className="py-3">
-              <dt className="text-xs font-semibold text-ink-3">
-                Produsen & alamat
-              </dt>
-              <dd className="mt-1 text-ink">
-                {activeCase.label.namaProdusen} —{" "}
-                {activeCase.label.alamatProdusen}
-              </dd>
-            </div>
-            <div className="py-3">
-              <dt className="text-xs font-semibold text-ink-3">
-                Kedaluwarsa & kode
-              </dt>
-              <dd className="mt-1 text-ink">
-                {activeCase.label.kedaluwarsaTeks || "-"} ·{" "}
-                {activeCase.label.kodeProduksiTeks || "-"}
-              </dd>
-            </div>
-            <div className="py-3">
-              <dt className="text-xs font-semibold text-ink-3">
-                Izin & alergen
-              </dt>
-              <dd className="mt-1 text-ink">
-                {activeCase.label.nomorIzinTeks || "-"} ·{" "}
-                {activeCase.label.pernyataanAlergenTeks ||
-                  "(tanpa kalimat alergen)"}
-              </dd>
-            </div>
-            <div className="py-3">
               <dt className="mb-2 text-xs font-semibold text-ink-3">
                 Resep (takaran terbanyak)
               </dt>

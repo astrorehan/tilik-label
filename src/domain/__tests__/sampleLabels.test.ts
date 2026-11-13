@@ -52,21 +52,21 @@ describe("SAMPLE_LABEL_CASES: kesalahan sesuai hasil pemeriksa", () => {
     }
   });
 
-  it("setiap ID aturan yang disebut di ringkasan termasuk kesalahan disengaja", () => {
+  it("ringkasan memakai bahasa sehari-hari: tanpa kode aturan atau pasal dan tidak panjang", () => {
     for (const item of SAMPLE_LABEL_CASES) {
-      const mentioned = item.ringkasanSingkat.match(/L-\d{2}/g) ?? [];
-      for (const id of mentioned) {
-        expect(item.kesalahanDisengaja, `${item.id} menyebut ${id}`).toContain(
-          id,
-        );
-      }
+      expect(item.ringkasanSingkat, item.id).not.toMatch(/L-\d\d|Pasal/);
+      expect(item.ringkasanSingkat.length, item.id).toBeGreaterThan(40);
+      expect(item.ringkasanSingkat.length, item.id).toBeLessThanOrEqual(260);
     }
   });
 
-  it("semua kesalahan disengaja disebut di ringkasan", () => {
+  it("nomor izin dan halal pada contoh jelas fiktif", () => {
     for (const item of SAMPLE_LABEL_CASES) {
-      for (const id of item.kesalahanDisengaja) {
-        expect(item.ringkasanSingkat, item.id).toContain(id);
+      expect(item.label.nomorIzinTeks, item.id).toMatch(/0{10,}/);
+      if (/ID\d/.test(item.label.keteranganHalalTeks)) {
+        expect(item.label.keteranganHalalTeks, item.id).toContain(
+          "ID00000000000000000",
+        );
       }
     }
   });
