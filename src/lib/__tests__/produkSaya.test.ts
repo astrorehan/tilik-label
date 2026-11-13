@@ -68,7 +68,7 @@ describe('parseProductList', () => {
   it('menerima daftar sah', () => {
     const list = parseProductList([makeProduct()]);
     expect(list).toHaveLength(1);
-    expect(list[0].id).toBe('p1');
+    expect(list[0]!.id).toBe('p1');
   });
 
   it('mengembalikan daftar kosong untuk data bukan array', () => {
@@ -101,8 +101,8 @@ describe('parseProductList', () => {
   it('mengisi bidang jawaban opsional yang hilang dengan null', () => {
     const raw = { ...makeProduct(), answers: makeAnswers() };
     const [product] = parseProductList([raw]);
-    expect(product.answers.alatProduksi).toBeNull();
-    expect(product.answers.wajibSni).toBeNull();
+    expect(product?.answers.alatProduksi).toBeNull();
+    expect(product?.answers.wajibSni).toBeNull();
   });
 
   it('mengambil yang pertama bila id ganda', () => {
@@ -111,12 +111,12 @@ describe('parseProductList', () => {
       makeProduct({ id: 'a', label: makeLabel({ namaProduk: 'Kedua' }) }),
     ]);
     expect(list).toHaveLength(1);
-    expect(list[0].label.namaProduk).toBe('Keripik Singkong');
+    expect(list[0]!.label.namaProduk).toBe('Keripik Singkong');
   });
 
   it('menghitung nama dari label, bukan dari data tersimpan', () => {
     const [product] = parseProductList([makeProduct({ nama: 'Nama Lama', label: makeLabel({ namaProduk: ' Dodol ' }) })]);
-    expect(product.nama).toBe('Dodol');
+    expect(product?.nama).toBe('Dodol');
   });
 
   it(`membatasi sampai ${MAX_SAVED_PRODUCTS} produk, mempertahankan yang terbaru`, () => {
@@ -128,7 +128,7 @@ describe('parseProductList', () => {
     );
     const list = parseProductList(many);
     expect(list).toHaveLength(MAX_SAVED_PRODUCTS);
-    expect(list[0].id).toBe(`p${MAX_SAVED_PRODUCTS + 4}`);
+    expect(list[0]!.id).toBe(`p${MAX_SAVED_PRODUCTS + 4}`);
   });
 });
 
@@ -192,13 +192,13 @@ describe('upsertProduct', () => {
     const result = upsertProduct(full, { id: 'p3', label: makeLabel(), answers: makeAnswers() }, t1, nextId);
     expect(result.product?.id).toBe('p3');
     expect(result.list).toHaveLength(MAX_SAVED_PRODUCTS);
-    expect(result.list[0].id).toBe('p3');
+    expect(result.list[0]!.id).toBe('p3');
   });
 
   it('tidak mengubah daftar masukan', () => {
     const list = [makeProduct()];
     upsertProduct(list, { id: 'p1', label: makeLabel(), answers: makeAnswers() }, t2, nextId);
-    expect(list[0].diperbaruiPada).toBe('2026-01-01T00:00:00.000Z');
+    expect(list[0]!.diperbaruiPada).toBe('2026-01-01T00:00:00.000Z');
   });
 });
 
@@ -254,8 +254,8 @@ describe('fungsi akses penyimpanan', () => {
     expect(first.ok && second.ok).toBe(true);
     const list = listProducts(storage);
     expect(list).toHaveLength(1);
-    expect(list[0].dibuatPada).toBe('2026-05-01T00:00:00.000Z');
-    expect(list[0].diperbaruiPada).toBe('2026-05-03T00:00:00.000Z');
+    expect(list[0]!.dibuatPada).toBe('2026-05-01T00:00:00.000Z');
+    expect(list[0]!.diperbaruiPada).toBe('2026-05-03T00:00:00.000Z');
   });
 
   it('data JSON rusak dianggap kosong dan bisa ditimpa', () => {
