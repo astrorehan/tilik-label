@@ -171,7 +171,7 @@ function checkI06(answers: AdditionalAnswers): PermitRuleResult {
     return makeRule(
       'I-06',
       'menghalangi',
-      'Produk butuh penanganan khusus dalam produksi atau distribusi (misalnya harus disimpan beku atau dingin).',
+      'Produk butuh penanganan khusus dalam produksi atau distribusi.',
     );
   }
   if (answers.butuhPenangananKhusus === false) {
@@ -180,7 +180,7 @@ function checkI06(answers: AdditionalAnswers): PermitRuleResult {
   return makeRule(
     'I-06',
     'perlu_dicek',
-    'Pastikan produk tidak butuh penanganan khusus, misalnya harus disimpan beku atau dingin selama dijual.',
+    'Pastikan produk tidak butuh penanganan khusus dalam produksi atau distribusi. Bila ragu, tanyakan ke Dinas Kesehatan.',
   );
 }
 
@@ -221,7 +221,7 @@ function uniqueReferences(rules: PermitRuleResult[]): RegulationReference[] {
 
 const OUTCOME_TITLES: Record<PermitPathOutcome, string> = {
   tidak_wajib_spp_irt: 'Tidak wajib izin produksi rumah tangga (SPP-IRT)',
-  bisa_spp_irt: 'Bisa lewat izin produksi rumah tangga (SPP-IRT)',
+  bisa_spp_irt: 'Kemungkinan bisa lewat izin produksi rumah tangga (SPP-IRT)',
   tidak_bisa_spp_irt: 'Tidak bisa lewat jalur izin produksi rumah tangga (SPP-IRT)',
   belum_bisa_ditentukan: 'Jalur izin belum bisa ditentukan',
 };
@@ -285,7 +285,7 @@ export function evaluatePermitPath(
     decisive = menghalangi;
     alasan = menghalangi.map((rule) => rule.penjelasan);
     perluDicek = [
-      'Tanyakan jalur izin lain yang sesuai (misalnya izin edar dari BPOM) ke Dinas Kesehatan atau Balai POM setempat.',
+      'Tanyakan jalur izin yang sesuai untuk produk ini ke Dinas Kesehatan atau Balai POM setempat.',
     ];
   } else if (belumDijawab.length > 0) {
     hasil = 'belum_bisa_ditentukan';
@@ -296,8 +296,14 @@ export function evaluatePermitPath(
     hasil = 'bisa_spp_irt';
     decisive = aturan.filter((rule) => rule.dampak === 'memenuhi' || rule.id === 'I-08');
     alasan = [
-      'Umur simpan 7 hari atau lebih, alat produksi manual atau semi otomatis, dan tidak ada klaim pada label.',
+      'Umur simpan 7 hari atau lebih, alat produksi manual atau semi otomatis, dan tidak ada klaim gizi atau kesehatan yang terdeteksi pada label.',
     ];
+    const unconfirmed = perluDicekRules.filter((rule) => rule.id !== 'I-08').length;
+    if (unconfirmed > 0) {
+      alasan.push(
+        `Masih ada ${unconfirmed} syarat yang belum dipastikan aplikasi. Hasil ini berlaku bila syarat di daftar "perlu dicek" terpenuhi.`,
+      );
+    }
     perluDicek = perluDicekRules.map((rule) => rule.penjelasan);
   }
 
