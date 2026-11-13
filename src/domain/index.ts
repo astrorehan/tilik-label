@@ -4,4 +4,5 @@ export * from './regulations';
 export * from './labelRules';
 export * from './permitRules';
 export * from './questions';
+export * from './correctedLabel';
 export * from './assistant';

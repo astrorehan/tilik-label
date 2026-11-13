@@ -4,7 +4,7 @@ import {
   readLabelImage,
   type ReaderProviderId,
 } from '@/lib/server/labelReader';
-import { getQuotaGuard } from '@/lib/server/rateLimit';
+import { getQuotaGuard, isForeignBrowserRequest } from '@/lib/server/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,7 +54,7 @@ const TOO_LARGE = 'Gambar terlalu besar. Coba foto ulang atau isi sendiri.';
  */
 export async function POST(request: Request) {
   // Permintaan dari situs lain ditolak supaya kuota tidak dipakai pihak luar lewat peramban.
-  if (request.headers.get('sec-fetch-site') === 'cross-site') {
+  if (isForeignBrowserRequest(request)) {
     return manual('Permintaan tidak sah.', 403);
   }
 
