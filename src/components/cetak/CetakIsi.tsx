@@ -54,8 +54,18 @@ export function CetakIsi({ product }: { product: SavedProduct }) {
     const reset = () => {
       delete document.documentElement.dataset.cetak;
     };
+    const media = window.matchMedia('print');
+    const onMedia = (event: MediaQueryListEvent) => {
+      if (!event.matches) reset();
+    };
     window.addEventListener('afterprint', reset);
-    return () => window.removeEventListener('afterprint', reset);
+    window.addEventListener('focus', reset);
+    media.addEventListener('change', onMedia);
+    return () => {
+      window.removeEventListener('afterprint', reset);
+      window.removeEventListener('focus', reset);
+      media.removeEventListener('change', onMedia);
+    };
   }, []);
 
   const kurang = report.hasil.filter((item) => item.status === 'kurang');
@@ -226,7 +236,13 @@ function LabelBagian({
               minimal 2 mm, Pasal 9).
             </p>
           </div>
-          <Button icon="printer" size="md" disabled={!siapUnduh} onClick={() => cetak('label')}>
+          <Button
+            icon="printer"
+            size="md"
+            disabled={!siapUnduh}
+            aria-describedby={siapUnduh ? undefined : 'butir-kosong-daftar'}
+            onClick={() => cetak('label')}
+          >
             Simpan PDF label
           </Button>
         </div>
@@ -237,7 +253,7 @@ function LabelBagian({
               Aplikasi tidak mengarang isi label. Lengkapi butir berikut di isi produk, lalu buka
               halaman ini lagi.
             </p>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
+            <ul id="butir-kosong-daftar" className="mt-2 list-disc space-y-1 pl-5">
               {butirKosong.map((judul) => (
                 <li key={judul} className="font-semibold text-ink">
                   {judul}
@@ -309,7 +325,7 @@ function LabelBaris({
   }
   if (row.kunci === 'daftarBahan') {
     return (
-      <p>
+      <p className="whitespace-pre-line">
         {bahanBagian.map((part, index) => (
           <Fragment key={index}>{part.alergen ? <strong>{part.teks}</strong> : part.teks}</Fragment>
         ))}

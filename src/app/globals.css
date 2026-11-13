@@ -397,8 +397,13 @@
     display: none !important;
   }
 
-  [data-cetak-bagian] + [data-cetak-bagian] {
+  /* Ringkasan pindah halaman hanya bila label ikut tercetak; label yang disembunyikan tidak meninggalkan halaman kosong. */
+  [data-cetak-bagian='label'][data-siap='true'] + [data-cetak-bagian='ringkasan'] {
     break-before: page;
+  }
+
+  html[data-cetak='ringkasan'] [data-cetak-bagian='ringkasan'] {
+    break-before: auto !important;
   }
 
   .label-cetak {

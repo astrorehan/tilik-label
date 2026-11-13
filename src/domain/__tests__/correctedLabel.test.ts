@@ -106,6 +106,7 @@ describe('buildCorrectedLabel: label lengkap', () => {
       'Nomor izin P-IRT',
       'Tanggal dan kode produksi',
       'Kedaluwarsa',
+      'Cara penyimpanan',
     ]);
     for (const r of result.baris) expect(r.teks).toBe('');
   });
@@ -145,14 +146,22 @@ describe('buildCorrectedLabel: butir bersyarat', () => {
     expect(result.siapUnduh).toBe(true);
   });
 
-  it('cara penyimpanan: tidak wajib bila tidak bergantung, dan diberi catatan bila belum dijawab', () => {
+  it('cara penyimpanan: tidak wajib bila tidak bergantung; belum dijawab dan kosong memblokir unduhan', () => {
     const tidak = buildCorrectedLabel(makeLabel(), makeAnswers({ bergantungCaraSimpan: false }));
     expect(row(tidak, 'caraPenyimpanan').wajib).toBe(false);
     expect(tidak.siapUnduh).toBe(true);
 
     const belum = buildCorrectedLabel(makeLabel(), makeAnswers({ bergantungCaraSimpan: null }));
-    expect(row(belum, 'caraPenyimpanan').wajib).toBe(false);
-    expect(belum.catatan.some((c) => c.includes('cara penyimpanan'))).toBe(true);
+    expect(row(belum, 'caraPenyimpanan').wajib).toBe(true);
+    expect(row(belum, 'caraPenyimpanan').kosong).toBe(true);
+    expect(belum.siapUnduh).toBe(false);
+    expect(belum.catatan).toContain('Jawab pertanyaan cara simpan atau tulis petunjuk penyimpanan.');
+
+    const terisi = buildCorrectedLabel(
+      makeLabel({ caraPenyimpananTeks: 'Simpan di tempat sejuk.' }),
+      makeAnswers({ bergantungCaraSimpan: null }),
+    );
+    expect(terisi.siapUnduh).toBe(true);
   });
 
   it('halal: dicetak hanya bila bersertifikat; dihapus dengan catatan bila belum atau belum dijawab', () => {
@@ -197,9 +206,9 @@ describe('buildCorrectedLabel: perbaikan otomatis', () => {
     expect(row(daftar, 'daftarBahan').teks).toBe('Daftar bahan: pisang, minyak, garam.');
   });
 
-  it('menyusun ulang bahan menurut resep dan menaruh bahan tak cocok di belakang', () => {
+  it('menyusun ulang bahan menurut resep bila semua bahan punya padanan', () => {
     const result = buildCorrectedLabel(
-      makeLabel({ daftarBahanTeks: 'Komposisi: garam, vanili, gula pasir, tepung, minyak.' }),
+      makeLabel({ daftarBahanTeks: 'Komposisi: garam, gula pasir; tepung\nminyak.' }),
       makeAnswers({
         resep: [
           { nama: 'garam', jumlahGram: 5 },
@@ -209,10 +218,67 @@ describe('buildCorrectedLabel: perbaikan otomatis', () => {
         ],
       }),
     );
-    expect(row(result, 'daftarBahan').teks).toBe(
-      'Komposisi: tepung, gula pasir, minyak, garam, vanili.',
-    );
+    expect(row(result, 'daftarBahan').teks).toBe('Komposisi: tepung, gula pasir, minyak, garam.');
     expect(result.catatan.some((c) => c.includes('disusun ulang'))).toBe(true);
+  });
+
+  it('bahan label tanpa padanan resep: tidak diurutkan ulang, pemisah asli tetap, ada catatan', () => {
+    const result = buildCorrectedLabel(
+      makeLabel({ daftarBahanTeks: 'Komposisi: garam; vanili\ngula pasir, tepung.' }),
+      makeAnswers({
+        resep: [
+          { nama: 'garam', jumlahGram: 5 },
+          { nama: 'tepung', jumlahGram: 500 },
+          { nama: 'gula pasir', jumlahGram: 200 },
+        ],
+      }),
+    );
+    expect(row(result, 'daftarBahan').teks).toBe('Komposisi: garam; vanili\ngula pasir, tepung.');
+    expect(result.catatan.some((c) => c.includes('vanili'))).toBe(true);
+    expect(result.catatan.some((c) => c.includes('disusun ulang'))).toBe(false);
+  });
+
+  it('bahan resep tanpa padanan di label: tidak diurutkan ulang, ada catatan', () => {
+    const result = buildCorrectedLabel(
+      makeLabel({ daftarBahanTeks: 'Komposisi: garam, tepung, gula.' }),
+      makeAnswers({
+        resep: [
+          { nama: 'tepung', jumlahGram: 500 },
+          { nama: 'garam', jumlahGram: 5 },
+          { nama: 'gula', jumlahGram: 50 },
+          { nama: 'ragi', jumlahGram: 2 },
+        ],
+      }),
+    );
+    expect(row(result, 'daftarBahan').teks).toBe('Komposisi: garam, tepung, gula.');
+    expect(result.catatan.some((c) => c.includes('ragi'))).toBe(true);
+  });
+
+  it('kecocokan bahan memakai kata utuh, bukan substring', () => {
+    const result = buildCorrectedLabel(
+      makeLabel({ daftarBahanTeks: 'Komposisi: garam, gulai, tepung.' }),
+      makeAnswers({
+        resep: [
+          { nama: 'tepung', jumlahGram: 500 },
+          { nama: 'gula', jumlahGram: 50 },
+          { nama: 'garam', jumlahGram: 5 },
+        ],
+      }),
+    );
+    expect(row(result, 'daftarBahan').teks).toBe('Komposisi: garam, gulai, tepung.');
+    expect(result.catatan.some((c) => c.includes('belum cukup cocok'))).toBe(true);
+
+    const utuh = buildCorrectedLabel(
+      makeLabel({ daftarBahanTeks: 'Komposisi: garam, tepung terigu, gula.' }),
+      makeAnswers({
+        resep: [
+          { nama: 'tepung', jumlahGram: 500 },
+          { nama: 'gula', jumlahGram: 50 },
+          { nama: 'garam', jumlahGram: 5 },
+        ],
+      }),
+    );
+    expect(row(utuh, 'daftarBahan').teks).toBe('Komposisi: tepung terigu, gula, garam.');
   });
 
   it('tidak memecah koma di dalam tanda kurung', () => {
@@ -254,13 +320,20 @@ describe('buildCorrectedLabel: perbaikan otomatis', () => {
   });
 
   it('mengganti awalan Exp/Expired/Kadaluarsa dan menambah awalan pada tanggal polos', () => {
-    for (const awal of ['Exp: ', 'EXP ', 'Expired: ', 'Kadaluarsa: ', 'Exp. date: ', '']) {
+    for (const awal of ['Exp: ', 'EXP ', 'Expired: ', 'Kadaluarsa: ', 'Exp. date: ', 'Exp date ', 'ED: ', 'Best before ', 'Baik dikonsumsi sebelum: ', 'Exp Exp ', '']) {
       const result = buildCorrectedLabel(
         makeLabel({ kedaluwarsaTeks: `${awal}13 Des 2026` }),
         makeAnswers(),
       );
       expect(row(result, 'kedaluwarsa').teks, awal).toBe('Baik digunakan sebelum: 13 Des 2026');
     }
+  });
+
+  it('kedaluwarsa: awalan tak dikenal tidak diganti dan awalan baku tidak digandakan', () => {
+    const lain = buildCorrectedLabel(makeLabel({ kedaluwarsaTeks: 'Edisi 13 Des 2026' }), makeAnswers());
+    expect(row(lain, 'kedaluwarsa').teks).toBe('Baik digunakan sebelum: Edisi 13 Des 2026');
+    const baku = buildCorrectedLabel(makeLabel(), makeAnswers());
+    expect(row(baku, 'kedaluwarsa').teks.match(/Baik digunakan sebelum/g)).toHaveLength(1);
   });
 
   it('kedaluwarsa yang sudah benar dibiarkan; awalan tanpa tanggal tetap kosong', () => {
@@ -271,12 +344,42 @@ describe('buildCorrectedLabel: perbaikan otomatis', () => {
     expect(kosong.siapUnduh).toBe(false);
   });
 
-  it('menulis P-IRT di depan nomor tanpa mengarang nomor', () => {
-    const result = buildCorrectedLabel(
-      makeLabel({ nomorIzinTeks: '2053273010123-29' }),
-      makeAnswers(),
-    );
-    expect(row(result, 'nomorIzin').teks).toBe('P-IRT 2053273010123-29');
+  it('P-IRT: penulisan tidak baku dinormalkan dengan catatan', () => {
+    for (const teks of ['PIRT 123', 'P IRT 123', 'p.irt 123', 'P-irt 123']) {
+      const result = buildCorrectedLabel(makeLabel({ nomorIzinTeks: teks }), makeAnswers());
+      expect(row(result, 'nomorIzin').teks, teks).toBe('P-IRT 123');
+      expect(result.catatan.some((c) => c.includes('dirapikan'))).toBe(true);
+      expect(result.siapUnduh).toBe(true);
+    }
+  });
+
+  it('P-IRT: teks tanpa tulisan P-IRT tidak diberi awalan, ditandai belum lengkap', () => {
+    for (const teks of ['MD 123', '2053273010123-29']) {
+      const result = buildCorrectedLabel(makeLabel({ nomorIzinTeks: teks }), makeAnswers());
+      expect(row(result, 'nomorIzin').teks).toBe(teks);
+      expect(row(result, 'nomorIzin').kosong).toBe(true);
+      expect(result.butirKosong).toContain('Nomor izin P-IRT');
+      expect(result.siapUnduh).toBe(false);
+      expect(result.catatan).toContain('Tulisan P-IRT belum ada; tulis sesuai nomor izin dari dinas.');
+    }
+  });
+
+  it('tanggal produksi: angka 6-8 digit yang bukan tanggal valid tidak dihitung', () => {
+    const tanpaTanggal = { tanggalProduksiTeks: '' };
+    for (const kode of ['LOT123456', '999999', '12345678', '991399', 'B01-000000']) {
+      const result = buildCorrectedLabel(
+        makeLabel({ ...tanpaTanggal, kodeProduksiTeks: kode }),
+        makeAnswers(),
+      );
+      expect(row(result, 'tanggalKodeProduksi').kosong, kode).toBe(true);
+    }
+    for (const kode of ['13/11/26', '13-11-2026', '131126', '20261113', '13112026', 'A1 13.11.26']) {
+      const result = buildCorrectedLabel(
+        makeLabel({ ...tanpaTanggal, kodeProduksiTeks: kode }),
+        makeAnswers(),
+      );
+      expect(row(result, 'tanggalKodeProduksi').kosong, kode).toBe(false);
+    }
   });
 
   it('membuang klaim L-15 dan L-17 dengan catatan, mempertahankan klaim lain', () => {

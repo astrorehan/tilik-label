@@ -99,9 +99,11 @@ export interface CorrectedLabel {
 const INGREDIENT_PREFIX_REGEX =
   /^\s*(komposisi|daftar bahan|bahan yang digunakan|bahan-bahan)\b\s*:?\s*/i;
 const EXPIRY_OK_REGEX = /^\s*baik digunakan sebelum\b/i;
+/** Awalan kedaluwarsa yang dikenali dan boleh diganti; teks lain tidak disentuh. */
 const EXPIRY_OTHER_PREFIX_REGEX =
-  /^\s*(expired|expiry|exp|kadaluarsa|kadaluwarsa|kedaluarsa|kedaluwarsa)\b\.?\s*(date)?\s*:?\s*/i;
-const PIRT_REGEX = /\bP-IRT\b/i;
+  /^(?:\s*(?:best\s+before|baik\s+dikonsumsi\s+sebelum|exp(?:ired|iry)?(?:\.?\s*date)?|kadaluarsa|kadaluwarsa|kedaluarsa|kedaluwarsa|ed)\b\.?\s*:?)+\s*/i;
+const PIRT_STRICT_REGEX = /(?<![A-Za-z])P-IRT(?![A-Za-z])/;
+const PIRT_LOOSE_REGEX = /(?<![A-Za-z])P[\s.-]?IRT(?![A-Za-z])/i;
 
 function blank(value: string): boolean {
   return value.trim().length === 0;
@@ -134,10 +136,37 @@ function tokenKey(token: string): string {
   return normalize(token.replace(/\([^)]*\)/g, ''));
 }
 
+function validDayMonth(day: number, month: number): boolean {
+  return day >= 1 && day <= 31 && month >= 1 && month <= 12;
+}
+
+/** True bila teks memuat pola tanggal yang valid (dd/mm/yy(yy), dd-mm-yyyy, ddmmyy, ddmmyyyy, yyyymmdd). */
+export function containsValidDate(text: string): boolean {
+  for (const m of text.matchAll(/(?<!\d)(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})(?!\d)/g)) {
+    if (validDayMonth(Number(m[1]), Number(m[2]))) return true;
+  }
+  for (const m of text.matchAll(/(?<!\d)(\d{6}|\d{8})(?!\d)/g)) {
+    const d = m[1] as string;
+    if (d.length === 6 && validDayMonth(Number(d.slice(0, 2)), Number(d.slice(2, 4)))) return true;
+    if (d.length === 8) {
+      if (validDayMonth(Number(d.slice(0, 2)), Number(d.slice(2, 4)))) return true;
+      if (validDayMonth(Number(d.slice(6, 8)), Number(d.slice(4, 6)))) return true;
+    }
+  }
+  return false;
+}
+
+/** Kecocokan kata utuh: sama persis, atau nama resep di awal/akhir token sebagai kata utuh. */
+function wholeWordMatch(key: string, target: string): boolean {
+  if (key.length === 0 || target.length === 0) return false;
+  return key === target || key.startsWith(`${target} `) || key.endsWith(` ${target}`);
+}
+
 interface SortedIngredients {
   tokens: string[];
   matched: number;
   recipeTanpaPadanan: string[];
+  labelTanpaPadanan: string[];
   resepCukup: boolean;
 }
 
@@ -147,7 +176,7 @@ function sortByRecipe(tokens: string[], answers: AdditionalAnswers): SortedIngre
     .map((r, index) => ({ ...r, index }))
     .sort((a, b) => b.jumlahGram - a.jumlahGram || a.index - b.index);
   if (recipe.length < 2) {
-    return { tokens, matched: 0, recipeTanpaPadanan: [], resepCukup: false };
+    return { tokens, matched: 0, recipeTanpaPadanan: [], labelTanpaPadanan: [], resepCukup: false };
   }
 
   const used = new Set<number>();
@@ -158,7 +187,7 @@ function sortByRecipe(tokens: string[], answers: AdditionalAnswers): SortedIngre
     const idx = tokens.findIndex((token, i) => {
       if (used.has(i)) return false;
       const key = tokenKey(token);
-      return key.length > 0 && (key === target || key.includes(target) || target.includes(key));
+      return wholeWordMatch(key, target);
     });
     if (idx === -1) {
       tanpaPadanan.push(r.nama.trim());
@@ -167,14 +196,22 @@ function sortByRecipe(tokens: string[], answers: AdditionalAnswers): SortedIngre
       ordered.push(idx);
     }
   }
-  if (ordered.length < 2) {
-    return { tokens, matched: ordered.length, recipeTanpaPadanan: tanpaPadanan, resepCukup: true };
+  const labelTanpaPadanan = tokens.filter((_, i) => !used.has(i));
+  // Urutan hanya diubah bila setiap bahan label dan setiap bahan resep punya padanan.
+  if (ordered.length < 2 || labelTanpaPadanan.length > 0 || tanpaPadanan.length > 0) {
+    return {
+      tokens,
+      matched: ordered.length,
+      recipeTanpaPadanan: tanpaPadanan,
+      labelTanpaPadanan,
+      resepCukup: true,
+    };
   }
-  const rest = tokens.map((_, i) => i).filter((i) => !used.has(i));
   return {
-    tokens: [...ordered, ...rest].map((i) => tokens[i] as string),
+    tokens: ordered.map((i) => tokens[i] as string),
     matched: ordered.length,
     recipeTanpaPadanan: tanpaPadanan,
+    labelTanpaPadanan,
     resepCukup: true,
   };
 }
@@ -261,6 +298,7 @@ export function buildCorrectedLabel(label: LabelData, answers: AdditionalAnswers
   if (body.length > 0) {
     const original = splitIngredients(body);
     const sorted = sortByRecipe(original, answers);
+    let reordered = false;
     const prefix = prefixMatch
       ? `${(prefixMatch[1] as string).replace(/^./, (c) => c.toUpperCase())}:`
       : INGREDIENT_PREFIX_DEFAULT;
@@ -271,17 +309,17 @@ export function buildCorrectedLabel(label: LabelData, answers: AdditionalAnswers
       catatan.push(
         'Urutan bahan belum bisa dipastikan dari yang terbanyak karena resep minimal dua bahan belum diisi. Urutan mengikuti teks asli.',
       );
-    } else if (sorted.matched < 2) {
+    } else if (
+      sorted.matched < 2 ||
+      sorted.labelTanpaPadanan.length > 0 ||
+      sorted.recipeTanpaPadanan.length > 0
+    ) {
       catatan.push(
         'Nama bahan di resep belum cukup cocok dengan daftar bahan, jadi urutan dibiarkan seperti teks asli. Cek sendiri bahwa urutannya dari yang terbanyak.',
       );
-    } else {
-      if (sorted.tokens.join('|') !== original.join('|')) {
-        catatan.push('Bahan disusun ulang dari takaran terbanyak menurut resep.');
-      }
-      if (sorted.tokens.length > sorted.matched) {
+      if (sorted.labelTanpaPadanan.length > 0) {
         catatan.push(
-          'Bahan yang tidak cocok dengan resep ditaruh di belakang. Cek apakah takarannya memang paling sedikit.',
+          `Bahan di label yang tidak ada padanannya di resep: ${sorted.labelTanpaPadanan.join(', ')}.`,
         );
       }
       if (sorted.recipeTanpaPadanan.length > 0) {
@@ -289,8 +327,13 @@ export function buildCorrectedLabel(label: LabelData, answers: AdditionalAnswers
           `Bahan resep yang tidak ditemukan di daftar bahan: ${sorted.recipeTanpaPadanan.join(', ')}.`,
         );
       }
+    } else if (sorted.tokens.join('|') !== original.join('|')) {
+      reordered = true;
+      catatan.push('Bahan disusun ulang dari takaran terbanyak menurut resep.');
     }
-    ingredientText = `${prefix} ${sorted.tokens.join(', ')}.`;
+    // Pemisah asli (titik koma, baris baru) dipertahankan kecuali bahan benar-benar diurutkan ulang.
+    const bodyText = reordered ? sorted.tokens.join(', ') : body.replace(/\.\s*$/, '');
+    ingredientText = `${prefix} ${bodyText}.`;
     bahanBagian = splitAllergenParts(ingredientText);
   }
 
@@ -316,12 +359,20 @@ export function buildCorrectedLabel(label: LabelData, answers: AdditionalAnswers
     }
   }
 
-  // Nomor izin: hanya dari pengguna. Tulisan "P-IRT" ditambahkan bila nomor ada tetapi tulisannya belum.
+  // Nomor izin: hanya dari pengguna. Tulisan "P-IRT" tidak pernah ditambahkan ke teks yang bukan nomor izin.
   const rawPirt = label.nomorIzinTeks.trim();
   let pirtText = rawPirt;
-  if (rawPirt.length > 0 && !PIRT_REGEX.test(rawPirt)) {
-    pirtText = `P-IRT ${rawPirt}`;
-    catatan.push('Tulisan "P-IRT" ditambahkan di depan nomor izin yang kamu isi.');
+  let pirtBelumLengkap = false;
+  if (rawPirt.length > 0) {
+    if (PIRT_STRICT_REGEX.test(rawPirt)) {
+      pirtText = rawPirt;
+    } else if (PIRT_LOOSE_REGEX.test(rawPirt)) {
+      pirtText = rawPirt.replace(PIRT_LOOSE_REGEX, 'P-IRT');
+      catatan.push('Penulisan "P-IRT" dirapikan sesuai bentuk bakunya.');
+    } else {
+      pirtBelumLengkap = true;
+      catatan.push('Tulisan P-IRT belum ada; tulis sesuai nomor izin dari dinas.');
+    }
   }
 
   // Produsen
@@ -333,17 +384,16 @@ export function buildCorrectedLabel(label: LabelData, answers: AdditionalAnswers
   // Tanggal dan kode produksi (kode wajib; tanggal wajib kecuali sudah ada di kode, seperti L-08)
   const tanggal = label.tanggalProduksiTeks.trim();
   const kode = label.kodeProduksiTeks.trim();
-  const kodeMemuatTanggal = /(\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b|\b\d{6,8}\b)/.test(kode);
+  const kodeMemuatTanggal = containsValidDate(kode);
   const tanggalKodeText = [tanggal, kode].filter(Boolean).join('\n');
   const tanggalKodeKosong = kode === '' || (tanggal === '' && !kodeMemuatTanggal);
 
   // Cara penyimpanan
-  const wajibSimpan = answers.bergantungCaraSimpan === true;
   const simpanText = label.caraPenyimpananTeks.trim();
-  if (answers.bergantungCaraSimpan === null && simpanText === '') {
-    catatan.push(
-      'Belum diketahui apakah umur simpan bergantung pada cara penyimpanan. Jawab pertanyaannya; bila ya, cara penyimpanan wajib dicantumkan.',
-    );
+  const simpanBelumDijawab = answers.bergantungCaraSimpan === null && simpanText === '';
+  const wajibSimpan = answers.bergantungCaraSimpan === true || simpanBelumDijawab;
+  if (simpanBelumDijawab) {
+    catatan.push('Jawab pertanyaan cara simpan atau tulis petunjuk penyimpanan.');
   }
 
   // Halal
@@ -375,7 +425,7 @@ export function buildCorrectedLabel(label: LabelData, answers: AdditionalAnswers
     daftarBahan: { teks: ingredientText },
     beratBersih: { teks: label.beratBersihTeks.trim() },
     produsen: { teks: produsenText, kosong: produsenKosong },
-    nomorIzin: { teks: pirtText },
+    nomorIzin: { teks: pirtText, kosong: pirtBelumLengkap || blank(pirtText) },
     tanggalKodeProduksi: { teks: tanggalKodeText, kosong: tanggalKodeKosong },
     kedaluwarsa: { teks: expiryText },
     pernyataanAlergen: { teks: alergenText, wajib: wajibAlergen },
