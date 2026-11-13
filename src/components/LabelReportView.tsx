@@ -12,8 +12,8 @@ export function LabelReportView({ report, productTitle }: LabelReportViewProps) 
     <section className="space-y-6" aria-label="Hasil pemeriksaan aturan label">
       <div className="panel p-5 sm:p-6">
         <div className="record-heading flex-wrap">
-          <div>
-            <h2 className="type-h2 text-ink">
+          <div className="min-w-0">
+            <h2 className="type-h2 break-words text-ink">
               {productTitle || 'Ringkasan Pemeriksaan Label'}
             </h2>
             <p className="mt-1 text-sm text-ink-2">
