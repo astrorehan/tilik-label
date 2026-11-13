@@ -3,19 +3,11 @@ import {
   NUTRITION_FACTS,
   NUTRITION_PATHS,
   NUTRITION_REGULATION,
-  nutritionDeadline,
+  NUTRITION_NO_NUMBERS,
+  NUTRITION_SAFE_STEPS,
 } from '@/domain/nutritionGuide';
 
-const SAFE_STEPS = [
-  'Tanyakan ke Dinas Kesehatan atau Balai POM jalan mana yang berlaku untuk produkmu.',
-  'Simpan resep lengkap beserta takaran setiap bahan.',
-  'Catat berapa gram atau mililiter satu takaran saji yang akan kamu tulis di label.',
-  'Jangan mengisi angka gizi dari tebakan atau dari produk lain.',
-];
-
 export function NutritionGuide() {
-  const deadline = nutritionDeadline();
-
   return (
     <div className="space-y-8">
       <section aria-labelledby="tiga-jalan" className="space-y-4">
@@ -54,7 +46,7 @@ export function NutritionGuide() {
                 <div className="mt-auto flex flex-wrap gap-2 pt-1">
                   <Pill tone="info">{path.article}</Pill>
                   <Pill tone="warning" icon="warning">
-                    Bahan belum diperoleh
+                    Teks resmi belum dibaca
                   </Pill>
                 </div>
                 <SourceNote>{path.sourceNote}</SourceNote>
@@ -64,13 +56,8 @@ export function NutritionGuide() {
         </ol>
       </section>
 
-      <Notice tone="warning" title="Belum ada angka di aplikasi ini">
-        <p>
-          Daftar nilai resmi dari Kepala BPOM dan tata cara hitung resminya belum kami peroleh dan
-          baca langsung. Daripada menampilkan angka yang bisa keliru, aplikasi ini tidak menampilkan
-          angka gizi apa pun dan tidak punya kalkulator. Kami baru akan menambahkannya setelah
-          teks resminya terbaca.
-        </p>
+      <Notice tone="warning" title={NUTRITION_NO_NUMBERS.title}>
+        <p>{NUTRITION_NO_NUMBERS.text}</p>
       </Notice>
 
       <section aria-labelledby="langkah-aman" className="space-y-3">
@@ -78,7 +65,7 @@ export function NutritionGuide() {
           Yang bisa kamu siapkan sekarang
         </h2>
         <ol className="max-w-2xl list-decimal space-y-2 pl-6 leading-relaxed text-ink-2 marker:font-semibold marker:text-ink">
-          {SAFE_STEPS.map((step) => (
+          {NUTRITION_SAFE_STEPS.map((step) => (
             <li key={step}>{step}</li>
           ))}
         </ol>
@@ -101,10 +88,6 @@ export function NutritionGuide() {
             </li>
           ))}
         </ul>
-        <SourceNote>
-          Bila dihitung sederhana, batas penyesuaian produk berizin adalah {deadline.text}.{' '}
-          {deadline.caveat}
-        </SourceNote>
       </section>
     </div>
   );

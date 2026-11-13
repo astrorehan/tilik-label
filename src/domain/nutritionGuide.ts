@@ -42,14 +42,14 @@ export const NUTRITION_PATHS: readonly NutritionPath[] = [
     nomor: 2,
     title: 'Pakai nilai yang ditetapkan Kepala BPOM',
     summary:
-      'Untuk jenis pangan tertentu, Kepala BPOM menetapkan nilai kandungan gizi yang boleh dipakai tanpa uji laboratorium.',
-    when: 'Usaha mikro boleh memilih jalan ini atau jalan nomor 1, bila jenis pangannya ada dalam penetapan itu.',
+      'Usaha mikro boleh memakai nilai yang ditetapkan Kepala BPOM untuk mengisi tabel nilai gizi.',
+    when: 'Usaha mikro boleh memilih jalan ini atau jalan nomor 1.',
     caution:
       'Aplikasi ini belum memuat daftarnya. Tanyakan ke Dinas Kesehatan atau Balai POM apakah produkmu ada di daftar.',
     article: 'Pasal 7 ayat 1',
     sourceStatus: 'belum-diperoleh',
     sourceNote:
-      'Keputusan Kepala BPOM belum dibaca langsung. Menurut berita UKM Indonesia (24 Juli 2026), keputusan itu bernomor 265 Tahun 2026 dan memuat 465 jenis pangan. Ini dari berita, bukan dari teks resmi; perlu dicek ke Dinas Kesehatan atau BPOM.',
+      'Keputusan Kepala BPOM belum dibaca langsung. Menurut berita UKM Indonesia (24 Juli 2026), keputusan itu bernomor 265 Tahun 2026 dan memuat 465 jenis pangan. Ini dari berita, bukan dari teks resmi; perlu dicek ke Dinas Kesehatan atau BPOM. Berita yang sama menyebut nilai itu dapat dipakai tanpa uji laboratorium, untuk jenis pangan tertentu, bila jenis pangannya ada dalam penetapan itu (menurut berita UKM Indonesia, belum dibaca langsung).',
   },
   {
     id: 'hitungan-bahan',
@@ -94,45 +94,20 @@ export const NUTRITION_FACTS: readonly NutritionFact[] = [
   },
   {
     id: 'G-06',
-    text: 'Produk yang sudah berizin wajib menyesuaikan paling lambat 24 bulan sejak aturan diundangkan, termasuk produk industri rumah tangga.',
+    text: 'Produk yang sudah berizin wajib menyesuaikan paling lambat 24 bulan sejak aturan diundangkan (diundangkan 17 Juni 2026 menurut siaran pers BPOM), termasuk produk industri rumah tangga.',
     article: 'Pasal 31',
-    note: 'Tanggal diundangkan (17 Juni 2026) dan masa peralihan 24 bulan berasal dari siaran pers BPOM, bukan dibaca dari pasalnya.',
+    note: 'Tanggal diundangkan dan masa peralihan 24 bulan berasal dari siaran pers BPOM, bukan dibaca dari pasalnya. Tanggal akhir pastinya perlu dicek ke Dinas Kesehatan atau BPOM.',
   },
 ];
 
-export const NUTRITION_PROMULGATED = { year: 2026, month: 6, day: 17 } as const;
-export const NUTRITION_TRANSITION_MONTHS = 24;
-
-const MONTH_NAMES = [
-  'Januari',
-  'Februari',
-  'Maret',
-  'April',
-  'Mei',
-  'Juni',
-  'Juli',
-  'Agustus',
-  'September',
-  'Oktober',
-  'November',
-  'Desember',
+export const NUTRITION_SAFE_STEPS: readonly string[] = [
+  'Tanyakan ke Dinas Kesehatan atau Balai POM jalan mana yang berlaku untuk produkmu.',
+  'Simpan resep lengkap beserta takaran setiap bahan.',
+  'Catat berapa gram atau mililiter satu takaran saji yang akan kamu tulis di label.',
+  'Jangan mengisi angka gizi dari tebakan atau dari produk lain.',
 ];
 
-export interface NutritionDeadline {
-  /** Contoh: "17 Juni 2028". */
-  text: string;
-  caveat: string;
-}
-
-/** Batas penyesuaian: tanggal diundangkan ditambah masa peralihan, sebagai teks. */
-export function nutritionDeadline(): NutritionDeadline {
-  const { year, month, day } = NUTRITION_PROMULGATED;
-  const index = month - 1 + NUTRITION_TRANSITION_MONTHS;
-  const endYear = year + Math.floor(index / 12);
-  const endMonth = index % 12;
-  return {
-    text: `${day} ${MONTH_NAMES[endMonth]} ${endYear}`,
-    caveat:
-      'Ini hitungan sederhana: tanggal diundangkan ditambah 24 bulan. Cara menghitung tanggal pastinya perlu dicek ke Dinas Kesehatan atau BPOM.',
-  };
-}
+export const NUTRITION_NO_NUMBERS = {
+  title: 'Belum ada angka di aplikasi ini',
+  text: 'Daftar nilai resmi dari Kepala BPOM dan tata cara hitung resminya belum kami peroleh dan baca langsung. Daripada menampilkan angka yang bisa keliru, aplikasi ini tidak menampilkan angka gizi apa pun dan tidak punya kalkulator. Kami baru akan menambahkannya setelah teks resminya terbaca.',
+} as const;

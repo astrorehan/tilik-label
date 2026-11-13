@@ -28,7 +28,8 @@ export default function NilaiGiziPage() {
             </p>
           </div>
           <ButtonLink href={OFFICIAL_TEXT} size="md" icon="external" variant="secondary" target="_blank" rel="noopener noreferrer">
-            Baca teks resmi
+            Baca teks resmi (PDF)
+            <span className="sr-only"> (membuka tab baru)</span>
           </ButtonLink>
         </header>
 
