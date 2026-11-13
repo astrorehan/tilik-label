@@ -2,9 +2,10 @@
 
 import { cn } from '@/lib/cn';
 
-export type FlowStep = 'isi' | 'tanya' | 'hasil';
+export type FlowStep = 'mulai' | 'isi' | 'tanya' | 'hasil';
 
 const STEPS: Array<{ id: FlowStep; label: string }> = [
+  { id: 'mulai', label: 'Mulai' },
   { id: 'isi', label: 'Isi label' },
   { id: 'tanya', label: 'Pertanyaan' },
   { id: 'hasil', label: 'Hasil' },
@@ -21,7 +22,7 @@ export function StepIndicator({
   const currentIndex = STEPS.findIndex((step) => step.id === current);
   return (
     <nav aria-label="Langkah pemeriksaan">
-      <ol className="grid grid-cols-3 gap-1.5 rounded-full bg-paper-deep p-1">
+      <ol className="grid grid-cols-4 gap-1 rounded-full bg-paper-deep p-1">
         {STEPS.map((step, index) => {
           const active = step.id === current;
           const done = index < currentIndex;
@@ -32,7 +33,7 @@ export function StepIndicator({
                 onClick={() => onSelect(step.id)}
                 aria-current={active ? 'step' : undefined}
                 className={cn(
-                  'flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full px-2 text-sm font-semibold transition-colors',
+                  'flex min-h-11 w-full flex-col items-center justify-center rounded-full px-1 text-[0.8125rem] leading-tight font-semibold transition-colors sm:flex-row sm:gap-1.5 sm:text-sm',
                   active
                     ? 'bg-surface text-ink shadow-[0_1px_3px_rgb(11_37_69/0.14)]'
                     : done
