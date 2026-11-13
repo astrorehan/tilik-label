@@ -1,0 +1,50 @@
+{
+  "keterangan": "Isi yang seharusnya terbaca dari gambar label rekaan di folder ini. Semua nama, alamat, dan nomor izin fiktif. String kosong berarti butir tidak ada di label; null berarti butir sengaja dibuat sulit dibaca.",
+  "gambar": {
+    "keripik-jelas.jpg": {
+      "namaProduk": "KERIPIK SINGKONG BALADO",
+      "daftarBahanTeks": "Komposisi: singkong, minyak kelapa sawit, cabai merah, gula pasir, garam, bawang putih.",
+      "beratBersihTeks": "Berat bersih: 150 g",
+      "namaProdusen": "Dapur Contoh Rekaan",
+      "alamatProdusen": "Jl. Contoh No. 1, Kota Malang 65111, Indonesia",
+      "keteranganHalalTeks": "",
+      "kodeProduksiTeks": "KS-0111",
+      "tanggalProduksiTeks": "10 Nov 2026",
+      "kedaluwarsaTeks": "Baik digunakan sebelum: 10 Mei 2027",
+      "nomorIzinTeks": "P-IRT 0000000000000-00",
+      "pernyataanAlergenTeks": "",
+      "caraPenyimpananTeks": "Simpan di tempat sejuk dan kering.",
+      "pernyataanLain": ["Tanpa pengawet", "Renyah"]
+    },
+    "kue-banyak-salah.jpg": {
+      "namaProduk": "Kue Kering Kacang",
+      "daftarBahanTeks": "Ingredients: gula halus, tepung terigu, kacang tanah, telur, mentega, garam",
+      "beratBersihTeks": "Net weight 250 gr",
+      "namaProdusen": "Dapur Rekaan Bunda",
+      "alamatProdusen": "Kota Solo",
+      "keteranganHalalTeks": "",
+      "kodeProduksiTeks": "",
+      "tanggalProduksiTeks": "",
+      "kedaluwarsaTeks": "Exp: 12/2026",
+      "nomorIzinTeks": "PIRT 0000000000000",
+      "pernyataanAlergenTeks": "",
+      "caraPenyimpananTeks": "",
+      "pernyataanLain": ["100% Alami", "Menyehatkan"]
+    },
+    "sambal-buram.jpg": {
+      "namaProduk": "SAMBAL BAWANG PEDAS",
+      "daftarBahanTeks": "Komposisi: cabai rawit, bawang merah, minyak goreng, garam, gula.",
+      "beratBersihTeks": "Berat bersih: 120 g",
+      "namaProdusen": "Usaha Contoh Rekaan",
+      "alamatProdusen": "Kota Bogor 16111, Indonesia",
+      "keteranganHalalTeks": "",
+      "kodeProduksiTeks": null,
+      "tanggalProduksiTeks": "",
+      "kedaluwarsaTeks": "Baik digunakan sebelum: 20 Des 2026",
+      "nomorIzinTeks": "P-IRT 0000000000000-00",
+      "pernyataanAlergenTeks": "",
+      "caraPenyimpananTeks": "",
+      "pernyataanLain": []
+    }
+  }
+}

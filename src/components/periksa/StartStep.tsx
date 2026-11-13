@@ -22,6 +22,9 @@ interface StartStepProps {
   onContinue: () => void;
   /** Pintu "belum punya label": langsung ke isian kosong. */
   onWithoutLabel: () => void;
+  /** Membaca isi label dari gambar lewat server. */
+  onRead?: () => void;
+  reading?: boolean;
 }
 
 function DoorButton({
@@ -53,7 +56,14 @@ function DoorButton({
 }
 
 /** Langkah awal F-02: kamera, unggah berkas, atau tanpa label. */
-export function StartStep({ image, onImage, onContinue, onWithoutLabel }: StartStepProps) {
+export function StartStep({
+  image,
+  onImage,
+  onContinue,
+  onWithoutLabel,
+  onRead,
+  reading,
+}: StartStepProps) {
   const [mode, setMode] = useState<Mode>('pilih');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +128,8 @@ export function StartStep({ image, onImage, onContinue, onWithoutLabel }: StartS
             setMode('pilih');
           }}
           onContinue={onContinue}
+          onRead={onRead}
+          reading={reading}
         />
       ) : mode === 'kamera' ? (
         <CameraCapture

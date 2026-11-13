@@ -12,8 +12,9 @@ import {
   getUnansweredQuestions,
   prepareForCheck,
 } from '@/domain';
-import type { AdditionalAnswers, LabelData } from '@/domain';
+import type { AdditionalAnswers, LabelData, LabelFieldKey } from '@/domain';
 import type { PreparedImage } from '@/lib/image/prepareImage';
+import { requestLabelRead } from '@/lib/readLabelClient';
 import { LabelForm } from './LabelForm';
 import { LabelImageReference } from './LabelImageReference';
 import { PermitPathView } from './PermitPathView';
@@ -49,6 +50,10 @@ export interface PeriksaFlowInitial {
 export function PeriksaFlowClient({ initial }: { initial?: PeriksaFlowInitial }) {
   const [step, setStep] = useState<FlowStep>(initial?.step ?? 'mulai');
   const [image, setImage] = useState<PreparedImage | null>(null);
+  const [reading, setReading] = useState(false);
+  const [readNotice, setReadNotice] = useState<
+    { tone: 'success' | 'warning'; title: string; body: string } | null
+  >(null);
   const [label, setLabel] = useState<LabelData>(() => initial?.label ?? createEmptyLabelData());
   const [answers, setAnswers] = useState<AdditionalAnswers>(
     () => initial?.answers ?? createEmptyAnswers(),
@@ -87,6 +92,28 @@ export function PeriksaFlowClient({ initial }: { initial?: PeriksaFlowInitial })
           onContinue={() => setStep('isi')}
           onWithoutLabel={() => {
             setImage(null);
+            setReadNotice(null);
+            setStep('isi');
+          }}
+          reading={reading}
+          onRead={async () => {
+            if (!image) return;
+            setReading(true);
+            const result = await requestLabelRead(image.dataUrl);
+            setReading(false);
+            if (result.ok) {
+              setLabel(result.label);
+              setReadNotice({
+                tone: result.tidakTerbaca.length > 0 ? 'warning' : 'success',
+                title: 'Isi label sudah dibaca. Periksa dulu sebelum lanjut.',
+                body:
+                  result.tidakTerbaca.length > 0
+                    ? `${result.tidakTerbaca.length} isian tidak terbaca dan ditandai di bawah. Lengkapi sesuai kemasan, dan betulkan isian lain yang salah baca.`
+                    : 'Bandingkan setiap isian dengan kemasanmu dan betulkan yang salah baca. Hasil pemeriksaan memakai isian yang kamu sahkan.',
+              });
+            } else {
+              setReadNotice({ tone: 'warning', title: 'Label belum bisa dibaca otomatis', body: result.pesan });
+            }
             setStep('isi');
           }}
         />
@@ -102,7 +129,12 @@ export function PeriksaFlowClient({ initial }: { initial?: PeriksaFlowInitial })
             setStep('tanya');
           }}
         >
-          <LabelForm value={label} onChange={setLabel} />
+          {readNotice && (
+            <Notice tone={readNotice.tone} title={readNotice.title}>
+              {readNotice.body}
+            </Notice>
+          )}
+          <LabelForm value={label} onChange={setLabel} renderFieldNote={(key) => unreadableNote(label, key)} />
           <div className="flex flex-col-reverse gap-2.5 border-t border-line pt-5 sm:flex-row sm:justify-between">
             <Button variant="secondary" size="lg" icon="arrowLeft" onClick={() => setStep('mulai')}>
               Kembali
@@ -149,6 +181,15 @@ export function PeriksaFlowClient({ initial }: { initial?: PeriksaFlowInitial })
         />
       )}
     </div>
+  );
+}
+
+function unreadableNote(label: LabelData, key: LabelFieldKey) {
+  if (!label.unreadableFields?.includes(key)) return undefined;
+  return (
+    <span className="font-semibold text-warning-ink">
+      Tidak terbaca dari foto. Isi sendiri sesuai kemasan.
+    </span>
   );
 }
 

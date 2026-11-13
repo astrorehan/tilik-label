@@ -15,11 +15,16 @@ export function ImageCheck({
   onRetake,
   onContinue,
   continueLabel = 'Lanjut isi label',
+  onRead,
+  reading = false,
 }: {
   image: PreparedImage;
   onRetake: () => void;
   onContinue: () => void;
   continueLabel?: string;
+  /** Bila ada, tombol utama menjadi "Baca isi label" dan lanjut tanpa baca jadi pilihan kedua. */
+  onRead?: () => void;
+  reading?: boolean;
 }) {
   return (
     <div className="panel space-y-4 p-4 sm:p-5">
@@ -53,14 +58,32 @@ export function ImageCheck({
           </p>
         </div>
       </div>
-      <div className="flex flex-col gap-2.5 border-t border-line pt-4 sm:flex-row sm:justify-between">
-        <Button variant="secondary" size="lg" icon="reset" onClick={onRetake}>
+      <div className="flex flex-col gap-2.5 border-t border-line pt-4 sm:flex-row sm:flex-wrap sm:justify-between">
+        <Button variant="secondary" size="lg" icon="reset" onClick={onRetake} disabled={reading}>
           Ganti gambar
         </Button>
-        <Button size="lg" iconAfter="arrowRight" onClick={onContinue}>
-          {continueLabel}
-        </Button>
+        <div className="flex flex-col gap-2.5 sm:flex-row">
+          {onRead && (
+            <Button variant="quiet" size="lg" onClick={onContinue} disabled={reading}>
+              Isi sendiri
+            </Button>
+          )}
+          {onRead ? (
+            <Button size="lg" icon="scan" busy={reading} disabled={reading} onClick={onRead}>
+              {reading ? 'Membaca label…' : 'Baca isi label'}
+            </Button>
+          ) : (
+            <Button size="lg" iconAfter="arrowRight" onClick={onContinue}>
+              {continueLabel}
+            </Button>
+          )}
+        </div>
       </div>
+      {reading && (
+        <p role="status" className="text-sm text-ink-2">
+          Gambar sedang dibaca. Biasanya selesai dalam beberapa detik.
+        </p>
+      )}
     </div>
   );
 }
