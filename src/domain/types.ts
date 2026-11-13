@@ -135,3 +135,58 @@ export interface LabelCheckReport {
   alergenTerdeteksi: string[];
   siapCetak: boolean;
 }
+
+/**
+ * Hasil akhir penentu jalur izin (F-05).
+ * - `tidak_wajib_spp_irt`: produk dikecualikan dari kewajiban SPP-IRT.
+ * - `bisa_spp_irt`: produk bisa diajukan lewat SPP-IRT (jenis pangan tetap perlu dicek ke Dinas Kesehatan).
+ * - `tidak_bisa_spp_irt`: produk tidak bisa lewat jalur SPP-IRT.
+ * - `belum_bisa_ditentukan`: jawaban penentu belum diisi.
+ */
+export type PermitPathOutcome =
+  | 'tidak_wajib_spp_irt'
+  | 'bisa_spp_irt'
+  | 'tidak_bisa_spp_irt'
+  | 'belum_bisa_ditentukan';
+
+/**
+ * Pengaruh satu aturan `I-*` terhadap jalur izin.
+ * - `membebaskan`: syarat pengecualian terpenuhi.
+ * - `menghalangi`: produk tidak bisa lewat SPP-IRT karena aturan ini.
+ * - `memenuhi`: syarat jalur SPP-IRT terpenuhi.
+ * - `tidak_berlaku`: pengecualian tidak berlaku untuk produk ini.
+ * - `belum_dijawab`: jawaban penentu belum diisi pengguna.
+ * - `perlu_dicek`: tidak bisa dipastikan aplikasi, perlu dicek ke Dinas Kesehatan.
+ */
+export type PermitRuleImpact =
+  | 'membebaskan'
+  | 'menghalangi'
+  | 'memenuhi'
+  | 'tidak_berlaku'
+  | 'belum_dijawab'
+  | 'perlu_dicek';
+
+/** Hasil evaluasi untuk satu butir aturan jalur izin. */
+export interface PermitRuleResult {
+  id: PermitRuleId;
+  judul: string;
+  dampak: PermitRuleImpact;
+  rujukan: RegulationReference;
+  penjelasan: string;
+}
+
+/** Ringkasan hasil penentu jalur izin beserta alasan dan pasalnya. */
+export interface PermitPathResult {
+  hasil: PermitPathOutcome;
+  judul: string;
+  /** Kalimat alasan utama yang menentukan hasil. */
+  alasan: string[];
+  /** Pasal yang menjadi dasar hasil. */
+  rujukan: RegulationReference[];
+  /** Hasil per aturan I-01 sampai I-08. */
+  aturan: PermitRuleResult[];
+  /** Hal yang belum bisa dipastikan aplikasi dan perlu dicek ke Dinas Kesehatan. */
+  perluDicek: string[];
+  /** Klaim pada label yang terdeteksi untuk aturan I-05. */
+  klaimTerdeteksi: string[];
+}
