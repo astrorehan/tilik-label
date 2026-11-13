@@ -54,8 +54,13 @@ export function AssistantBox({
   const questions = QUICK_QUESTIONS.filter((q) => q.perTemuan === Boolean(ruleId));
 
   const send = async (pertanyaan: string, extra: { pertanyaanId: QuickQuestionId } | { pertanyaanBebas: string }) => {
+    if (busy) return;
     setBusy(true);
     const result = await ask({ label, answers, ...(ruleId ? { ruleId } : {}), ...extra });
+    if (!result.ok && 'pertanyaanBebas' in extra) {
+      // Pertanyaan dikembalikan ke isian supaya tidak perlu diketik ulang.
+      setFreeText(extra.pertanyaanBebas);
+    }
     setHistory((prev) => [...prev, { pertanyaan, jawaban: result.teks, galat: !result.ok }]);
     setBusy(false);
   };
@@ -107,7 +112,7 @@ export function AssistantBox({
 
       <div aria-live="polite" className="space-y-3">
         {busy && (
-          <p role="status" className="text-sm text-ink-2">
+          <p className="text-sm text-ink-2">
             Asisten sedang menyiapkan penjelasan…
           </p>
         )}

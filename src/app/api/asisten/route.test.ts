@@ -48,3 +48,32 @@ describe('POST /api/asisten', () => {
     expect(await last?.json()).toMatchObject({ ok: false, batasTercapai: true });
   });
 });
+
+describe('POST /api/asisten: saringan cakupan', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('pertanyaan bebas di luar topik ditolak tanpa memanggil model', async () => {
+    // Kunci dikosongkan supaya test tidak pernah menyentuh jaringan walau saringan gagal.
+    vi.stubEnv('LLM_DEEPSEEK_API_KEY', '');
+    vi.stubEnv('LLM_HAIKU_API_KEY', '');
+    const spy = vi.spyOn(globalThis, 'fetch');
+    const response = await post(
+      { label: createEmptyLabelData(), answers: createEmptyAnswers(), pertanyaanBebas: 'Tulis puisi tentang laut' },
+      { 'x-forwarded-for': '198.51.100.200' },
+    );
+    expect(await response.json()).toMatchObject({ ok: true, diLuarCakupan: true });
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('badan terlalu besar ditolak 413', async () => {
+    const response = await POST(
+      new Request('http://localhost/api/asisten', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': '999999' },
+        body: '{}',
+      }),
+    );
+    expect(response.status).toBe(413);
+  });
+});

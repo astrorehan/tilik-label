@@ -158,6 +158,15 @@ export function buildReferenceMaterial(): string {
   ].join('\n');
 }
 
+/** Membuang karakter kontrol dan memotong teks pengguna sebelum masuk konteks model. */
+export function cleanForContext(text: string, max: number): string {
+  return text
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
+}
+
 /** Konteks terkunci per permintaan: hasil pemeriksaan terstruktur yang dihitung di server. */
 export function buildLockedContext(label: LabelData, answers: AdditionalAnswers, ruleId?: AnyRuleId) {
   const report = evaluateLabelRules(label, answers);
@@ -172,7 +181,7 @@ export function buildLockedContext(label: LabelData, answers: AdditionalAnswers,
     ...(item.contohBenar ? { contohBenar: item.contohBenar } : {}),
   }));
   return {
-    produk: label.namaProduk || '(tanpa nama)',
+    produk: cleanForContext(label.namaProduk, 80) || '(tanpa nama)',
     temuanDitanya: ruleId ?? null,
     jalurIzin: {
       hasil: permit.judul,
@@ -213,17 +222,57 @@ export function allowedArticleNumbers(): Set<string> {
   return numbers;
 }
 
+/** Peraturan yang dikenal aplikasi, sebagai pasangan nomor/tahun. */
+export const KNOWN_REGULATIONS = ['31/2018', '4/2024', '10/2026'];
+
 /**
  * Menemukan nomor pasal yang disebut jawaban tetapi tidak ada di bahan acuan.
- * Dipakai server untuk menolak jawaban yang mengarang pasal.
+ * Menangkap rangkaian seperti "Pasal 5, 10 dan 14" dan singkatan "Ps. 9".
  */
 export function findUnknownArticles(answer: string): string[] {
   const allowed = allowedArticleNumbers();
   const unknown = new Set<string>();
-  for (const match of answer.matchAll(/\bpasal\s+(\d+)/gi)) {
-    if (match[1] && !allowed.has(match[1])) unknown.add(match[1]);
+  const pattern = /\b(?:pasal|ps\.?)\s+(\d+(?:\s*(?:,|dan|serta|atau|-|sampai)\s*\d+)*)/gi;
+  for (const match of answer.matchAll(pattern)) {
+    for (const number of match[1]?.match(/\d+/g) ?? []) {
+      if (!allowed.has(number)) unknown.add(number);
+    }
   }
   return [...unknown];
+}
+
+/**
+ * Menemukan peraturan bernomor yang tidak ada di bahan acuan,
+ * mis. "UU 18/2012", "PP Nomor 86 Tahun 2019", "Peraturan BPOM Nomor 22 Tahun 2019".
+ */
+export function findUnknownRegulations(answer: string): string[] {
+  const unknown = new Set<string>();
+  const patterns = [
+    /\b(?:peraturan|perka|perkaban|permenkes|pp|uu|undang-undang|keputusan|kepmenkes)\b[^.\n]{0,40}?\bnomor\s+(\d+)\s+tahun\s+(\d{4})/gi,
+    /\b(?:peraturan|perka|perkaban|permenkes|pp|uu|bpom|keputusan|kepmenkes)\s+(?:no\.?\s*)?(\d+)\s*\/\s*(\d{4})/gi,
+  ];
+  for (const pattern of patterns) {
+    for (const match of answer.matchAll(pattern)) {
+      const key = `${match[1]}/${match[2]}`;
+      if (!KNOWN_REGULATIONS.includes(key)) unknown.add(key);
+    }
+  }
+  return [...unknown];
+}
+
+const DOMAIN_KEYWORDS =
+  /\b(label|kemasan|bahan|komposisi|pasal|aturan|peraturan|izin|p-?irt|spp|halal|alergen|kedaluwarsa|kadaluarsa|kadaluwarsa|expired|exp|berat|bersih|produsen|alamat|kode|produksi|tanggal|simpan|penyimpanan|klaim|pengawet|pewarna|pemanis|gizi|bpom|dinas|temuan|status|cetak|tulisan|penulisan|huruf|urutan|takaran|resep|umur|jalur|siap saji|stiker|logo|nomor|merek|nama produk|bahasa)\b|\b[li]-\d{2}\b/i;
+
+/**
+ * Saringan cakupan di server untuk pertanyaan bebas tanpa temuan tertentu.
+ * Pertanyaan yang sama sekali tidak menyinggung label atau aturan ditolak sebelum memanggil model.
+ */
+export function isQuestionInScope(question: string, ruleId?: AnyRuleId): boolean {
+  if (ruleId) {
+    // Di dalam kotak temuan, pertanyaan pendek seperti "apa artinya?" tetap wajar.
+    return true;
+  }
+  return DOMAIN_KEYWORDS.test(question);
 }
 
 export const OUT_OF_SCOPE_ANSWER =

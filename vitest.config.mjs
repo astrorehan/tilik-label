@@ -13,5 +13,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Test tidak boleh memanggil penyedia model sungguhan: kunci selalu dikosongkan.
+    env: { LLM_DEEPSEEK_API_KEY: '', LLM_HAIKU_API_KEY: '' },
   },
 });

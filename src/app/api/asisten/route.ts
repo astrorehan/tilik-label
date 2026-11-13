@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import {
+  OUT_OF_SCOPE_ANSWER,
   buildLockedContext,
   isKnownRuleId,
+  isQuestionInScope,
   resolveQuestion,
   sanitizeCheckInput,
   type AssistantRequest,
   type QuickQuestionId,
 } from '@/domain';
 import { askAssistant } from '@/lib/server/assistant';
-import { getQuotaGuard } from '@/lib/server/rateLimit';
+import { getQuotaGuard, isForeignBrowserRequest } from '@/lib/server/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,11 +29,15 @@ function reply(body: Record<string, unknown>, status = 200, headers: Record<stri
  * tidak bisa menyisipkan status temuan sendiri.
  */
 export async function POST(request: Request) {
-  if (request.headers.get('sec-fetch-site') === 'cross-site') {
+  if (isForeignBrowserRequest(request)) {
     return reply({ ok: false, pesan: 'Permintaan tidak sah.' }, 403);
   }
+  const declared = request.headers.get('content-length');
+  if (declared !== null && (!/^\d+$/.test(declared) || Number(declared) > MAX_BODY_BYTES)) {
+    return reply({ ok: false, pesan: 'Permintaan terlalu besar.' }, 413);
+  }
   const text = await request.text().catch(() => '');
-  if (!text || text.length > MAX_BODY_BYTES) {
+  if (!text || Buffer.byteLength(text, 'utf8') > MAX_BODY_BYTES) {
     return reply({ ok: false, pesan: 'Permintaan tidak sah.' }, 400);
   }
   let body: Record<string, unknown>;
@@ -57,6 +63,11 @@ export async function POST(request: Request) {
   const question = assistantRequest ? resolveQuestion(assistantRequest) : null;
   if (!question) {
     return reply({ ok: false, pesan: 'Pertanyaan tidak sah atau terlalu panjang.' }, 400);
+  }
+
+  // Pertanyaan bebas yang jelas di luar topik ditolak tanpa memanggil model dan tanpa memakai jatah.
+  if ('pertanyaanBebas' in (assistantRequest ?? {}) && !isQuestionInScope(question, ruleId)) {
+    return reply({ ok: true, jawaban: OUT_OF_SCOPE_ANSWER, diLuarCakupan: true });
   }
 
   const quota = getQuotaGuard().check('asisten', request.headers);
