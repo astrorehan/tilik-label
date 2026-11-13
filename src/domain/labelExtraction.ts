@@ -108,6 +108,10 @@ function isStatus(value: unknown): value is ExtractionStatus {
   return typeof value === 'string' && (STATUSES as readonly string[]).includes(value);
 }
 
+function hasOnlyKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
+  return Object.keys(value).every((key) => allowed.includes(key));
+}
+
 function cleanText(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
 }
@@ -136,6 +140,12 @@ export function validateExtraction(raw: unknown): ExtractionResult {
   if (!isRecord(raw) || !isRecord(raw.butir) || !isRecord(raw.pernyataanLain)) {
     return { ok: false, alasan: 'skema_tidak_sesuai' };
   }
+  if (
+    !hasOnlyKeys(raw, ['butir', 'pernyataanLain', 'bukanLabelPangan']) ||
+    !hasOnlyKeys(raw.butir, EXTRACTION_TEXT_FIELDS)
+  ) {
+    return { ok: false, alasan: 'skema_tidak_sesuai' };
+  }
   if (typeof raw.bukanLabelPangan !== 'boolean') {
     return { ok: false, alasan: 'skema_tidak_sesuai' };
   }
@@ -148,7 +158,12 @@ export function validateExtraction(raw: unknown): ExtractionResult {
 
   for (const field of EXTRACTION_TEXT_FIELDS) {
     const item = raw.butir[field];
-    if (!isRecord(item) || !isStatus(item.status) || typeof item.teks !== 'string') {
+    if (
+      !isRecord(item) ||
+      !hasOnlyKeys(item, ['status', 'teks']) ||
+      !isStatus(item.status) ||
+      typeof item.teks !== 'string'
+    ) {
       return { ok: false, alasan: 'skema_tidak_sesuai' };
     }
     if (item.teks.length > MAX_FIELD_LENGTH) {
@@ -157,7 +172,8 @@ export function validateExtraction(raw: unknown): ExtractionResult {
     const teks = cleanText(item.teks);
     if (item.status === 'terbaca' && teks) {
       label[field] = teks;
-    } else if (item.status === 'tidak_terbaca') {
+    } else if (item.status === 'tidak_terbaca' || item.status === 'terbaca') {
+      // `terbaca` tanpa teks dianggap tidak terbaca, bukan kosong diam-diam.
       // Teks sebagian (bila ada) tetap ditampilkan supaya mudah dibetulkan.
       label[field] = teks;
       tidakTerbaca.push(field);
@@ -166,6 +182,7 @@ export function validateExtraction(raw: unknown): ExtractionResult {
 
   const claims = raw.pernyataanLain;
   if (
+    !hasOnlyKeys(claims, ['status', 'daftar']) ||
     !isStatus(claims.status) ||
     !Array.isArray(claims.daftar) ||
     !claims.daftar.every((item) => typeof item === 'string') ||

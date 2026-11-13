@@ -8,7 +8,10 @@ import {
   type FetchLike,
 } from '../server/labelReader';
 
-const IMAGE = parseImageDataUrl('data:image/jpeg;base64,AAAA')!;
+const JPEG_B64 = '/9j/4AAQ';
+const PNG_B64 = 'iVBORw0KGgoAAAAA';
+const WEBP_B64 = 'UklGRgAAAABXRUJQ';
+const IMAGE = parseImageDataUrl(`data:image/jpeg;base64,${JPEG_B64}`)!;
 
 const ENV_BOTH = {
   LLM_PROVIDER: 'deepseek',
@@ -98,7 +101,20 @@ describe('konfigurasi penyedia', () => {
 
 describe('parseImageDataUrl', () => {
   it('menerima JPEG, PNG, WebP base64', () => {
-    expect(parseImageDataUrl('data:image/png;base64,AAAA=')?.mediaType).toBe('image/png');
+    expect(parseImageDataUrl(`data:image/jpeg;base64,${JPEG_B64}`)?.mediaType).toBe('image/jpeg');
+    expect(parseImageDataUrl(`data:image/png;base64,${PNG_B64}`)?.mediaType).toBe('image/png');
+    expect(parseImageDataUrl(`data:image/webp;base64,${WEBP_B64}`)?.mediaType).toBe('image/webp');
+  });
+
+  it('menolak magic byte yang tidak cocok dengan jenisnya', () => {
+    expect(parseImageDataUrl(`data:image/png;base64,${JPEG_B64}`)).toBeNull();
+    expect(parseImageDataUrl(`data:image/jpeg;base64,${WEBP_B64}`)).toBeNull();
+    expect(parseImageDataUrl(`data:image/webp;base64,${PNG_B64}`)).toBeNull();
+    expect(parseImageDataUrl('data:image/jpeg;base64,AAAA')).toBeNull();
+  });
+
+  it('menolak panjang base64 bukan kelipatan 4', () => {
+    expect(parseImageDataUrl(`data:image/jpeg;base64,${JPEG_B64.slice(0, 7)}`)).toBeNull();
   });
 
   it('menolak jenis lain, bukan base64, dan bukan teks', () => {
@@ -142,7 +158,7 @@ describe('readLabelImage', () => {
     expect(body.output_config.format.type).toBe('json_schema');
     expect(body.messages[0].content[0]).toEqual({
       type: 'image',
-      source: { type: 'base64', media_type: 'image/jpeg', data: 'AAAA' },
+      source: { type: 'base64', media_type: 'image/jpeg', data: JPEG_B64 },
     });
   });
 
