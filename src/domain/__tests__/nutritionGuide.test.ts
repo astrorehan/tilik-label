@@ -34,9 +34,9 @@ describe('nutritionGuide', () => {
   });
 
   it('keputusan 265/2026 ditandai berasal dari berita', () => {
-    const p = NUTRITION_PATHS[1];
-    expect(p.sourceNote).toMatch(/berita/i);
-    expect(p.sourceNote).toMatch(/belum dibaca/i);
+    const p = NUTRITION_PATHS.find((x) => x.id === 'nilai-kepala-bpom');
+    expect(p?.sourceNote).toMatch(/berita/i);
+    expect(p?.sourceNote).toMatch(/belum dibaca/i);
   });
 
   it('tidak ada angka gizi (angka dengan satuan gizi) di data', () => {
