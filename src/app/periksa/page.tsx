@@ -1,13 +1,20 @@
 import type { Metadata } from 'next';
 import { Footer } from '@/components/Footer';
 import { Navbar } from '@/components/Navbar';
-import { PeriksaFlowClient } from '@/components/periksa/PeriksaFlowClient';
+import { PeriksaEntryClient } from '@/components/periksa/PeriksaEntryClient';
 
 export const metadata: Metadata = {
   title: 'Periksa label',
 };
 
-export default function PeriksaPage() {
+export default async function PeriksaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ produk?: string | string[] }>;
+}) {
+  const { produk } = await searchParams;
+  const produkId = typeof produk === 'string' && produk.length > 0 ? produk : undefined;
+
   return (
     <div className="min-h-[100dvh] bg-paper text-ink">
       <Navbar />
@@ -25,7 +32,7 @@ export default function PeriksaPage() {
           </p>
         </header>
 
-        <PeriksaFlowClient />
+        <PeriksaEntryClient produkId={produkId} />
       </main>
 
       <Footer />
