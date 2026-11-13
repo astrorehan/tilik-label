@@ -4,6 +4,7 @@ import {
   createQuotaGuard,
   limitMessage,
   readLimits,
+  isForeignBrowserRequest,
   visitorKey,
 } from '../server/rateLimit';
 
@@ -78,10 +79,28 @@ describe('readLimits', () => {
 });
 
 describe('visitorKey', () => {
-  it('memakai IP pertama dari x-forwarded-for, lalu x-real-ip', () => {
+  it('mendahulukan header platform, lalu x-forwarded-for', () => {
     expect(visitorKey(headers('1.2.3.4'))).toBe('1.2.3.4');
-    expect(visitorKey(new Headers({ 'x-real-ip': '5.6.7.8' }))).toBe('5.6.7.8');
+    expect(visitorKey(new Headers({ 'x-real-ip': '5.6.7.8', 'x-forwarded-for': '9.9.9.9' }))).toBe('5.6.7.8');
+    expect(
+      visitorKey(new Headers({ 'x-vercel-forwarded-for': '7.7.7.7', 'x-forwarded-for': '9.9.9.9' })),
+    ).toBe('7.7.7.7');
     expect(visitorKey(new Headers())).toBe('tanpa-ip');
+  });
+});
+
+describe('isForeignBrowserRequest', () => {
+  const req = (headers: Record<string, string>) =>
+    new Request('http://tilik.test/api/baca-label', { method: 'POST', headers });
+  it('menerima permintaan dari situs sendiri atau tanpa header peramban', () => {
+    expect(isForeignBrowserRequest(req({ 'sec-fetch-site': 'same-origin' }))).toBe(false);
+    expect(isForeignBrowserRequest(req({}))).toBe(false);
+    expect(isForeignBrowserRequest(req({ origin: 'http://tilik.test' }))).toBe(false);
+  });
+  it('menolak lintas situs, situs saudara, dan Origin asing', () => {
+    expect(isForeignBrowserRequest(req({ 'sec-fetch-site': 'cross-site' }))).toBe(true);
+    expect(isForeignBrowserRequest(req({ 'sec-fetch-site': 'same-site' }))).toBe(true);
+    expect(isForeignBrowserRequest(req({ origin: 'https://lain.test' }))).toBe(true);
   });
 });
 
@@ -105,10 +124,11 @@ describe('createQuotaGuard', () => {
     expect(guard.check('asisten', headers('1.1.1.1'), 1).allowed).toBe(true);
   });
 
-  it('batas harian server berlaku untuk semua pengunjung', () => {
+  it('batas harian server berlaku untuk semua pengunjung, terpisah per jenis', () => {
     const guard = createQuotaGuard({ LLM_BATAS_HARIAN_SERVER: '2' });
     expect(guard.check('baca', headers('1.1.1.1'), 0).allowed).toBe(true);
-    expect(guard.check('asisten', headers('2.2.2.2'), 1).allowed).toBe(true);
+    expect(guard.check('baca', headers('2.2.2.2'), 1).allowed).toBe(true);
+    expect(guard.check('asisten', headers('4.4.4.4'), 1).allowed).toBe(true);
     const denied = guard.check('baca', headers('3.3.3.3'), 2);
     expect(denied.allowed).toBe(false);
     expect(!denied.allowed && denied.pesan).toMatch(/batas harian server/);

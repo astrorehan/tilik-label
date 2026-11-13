@@ -109,19 +109,47 @@ export function readLimits(env: Record<string, string | undefined> = process.env
       { ms: HOUR, max: numberFromEnv(env.LLM_BATAS_ASISTEN_PER_JAM, 20), nama: 'jam' },
       { ms: DAY, max: numberFromEnv(env.LLM_BATAS_ASISTEN_PER_HARI, 60), nama: 'hari' },
     ],
-    /** Batas seluruh pengunjung per instans server per hari. */
-    server: [{ ms: DAY, max: numberFromEnv(env.LLM_BATAS_HARIAN_SERVER, 1000), nama: 'hari' }],
-  } satisfies Record<ModelUse | 'server', RateWindow[]>;
+    /** Batas seluruh pengunjung per instans server per hari, terpisah per jenis pemakaian. */
+    serverBaca: [{ ms: DAY, max: numberFromEnv(env.LLM_BATAS_HARIAN_SERVER, 1000), nama: 'hari' }],
+    serverAsisten: [
+      { ms: DAY, max: numberFromEnv(env.LLM_BATAS_HARIAN_SERVER_ASISTEN, 2000), nama: 'hari' },
+    ],
+  } satisfies Record<ModelUse | 'serverBaca' | 'serverAsisten', RateWindow[]>;
 }
 
 /**
- * Pengenal pengunjung dari alamat IP (header proksi Vercel). Tanpa login, IP adalah
- * pengenal terbaik yang ada; pengguna di jaringan yang sama berbagi batas.
+ * Pengenal pengunjung dari alamat IP. Header yang dipasang platform didahulukan
+ * (`x-vercel-forwarded-for`, `x-real-ip`), karena entri pertama `x-forwarded-for`
+ * bisa diisi sendiri oleh klien bila tidak ada proksi di depannya.
+ * Tanpa login, IP adalah pengenal terbaik yang ada; pengguna di jaringan yang sama berbagi batas.
  */
 export function visitorKey(headers: Headers): string {
-  const forwarded = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  const vercel = headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim();
   const real = headers.get('x-real-ip')?.trim();
-  return forwarded || real || 'tanpa-ip';
+  const forwarded = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return vercel || real || forwarded || 'tanpa-ip';
+}
+
+/**
+ * Menolak permintaan peramban yang bukan dari situs ini sendiri.
+ * Peramban modern mengirim `Sec-Fetch-Site`; `same-origin` dan `none` (dibuka langsung) diterima.
+ * Bila ada header `Origin`, host-nya harus sama dengan host permintaan.
+ */
+export function isForeignBrowserRequest(request: Request): boolean {
+  const site = request.headers.get('sec-fetch-site');
+  if (site && site !== 'same-origin' && site !== 'none') {
+    return true;
+  }
+  const origin = request.headers.get('origin');
+  if (origin) {
+    try {
+      const host = request.headers.get('host') ?? new URL(request.url).host;
+      return new URL(origin).host !== host;
+    } catch {
+      return true;
+    }
+  }
+  return false;
 }
 
 const LIMIT_MESSAGES: Record<ModelUse, string> = {
@@ -163,7 +191,10 @@ export function createQuotaGuard(env: Record<string, string | undefined> = proce
     baca: new SlidingWindowLimiter(limits.baca),
     asisten: new SlidingWindowLimiter(limits.asisten),
   };
-  const server = new SlidingWindowLimiter(limits.server);
+  const servers: Record<ModelUse, SlidingWindowLimiter> = {
+    baca: new SlidingWindowLimiter(limits.serverBaca),
+    asisten: new SlidingWindowLimiter(limits.serverAsisten),
+  };
   return {
     check(use, headers, now = Date.now()) {
       const key = visitorKey(headers);
@@ -171,7 +202,7 @@ export function createQuotaGuard(env: Record<string, string | undefined> = proce
       if (!visitor.allowed) {
         return { allowed: false, pesan: limitMessage(use, visitor), retryAfterSec: visitor.retryAfterSec };
       }
-      const global = server.take('server', now);
+      const global = servers[use].take('server', now);
       if (!global.allowed) {
         return { allowed: false, pesan: limitMessage(use, global, true), retryAfterSec: global.retryAfterSec };
       }
