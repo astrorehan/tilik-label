@@ -63,6 +63,9 @@ function drawToCanvas(source: Drawable, width: number, height: number): HTMLCanv
   if (!context) {
     throw new ImagePrepareError('Peramban ini tidak bisa mengolah gambar.');
   }
+  // Latar putih supaya PNG/WebP transparan tidak jadi hitam saat dijadikan JPEG.
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, width, height);
   context.imageSmoothingQuality = 'high';
   context.drawImage(source, 0, 0, width, height);
   return canvas;
@@ -79,11 +82,16 @@ function prepareFromSource(source: Drawable): PreparedImage {
   const canvas = drawToCanvas(source, target.width, target.height);
   const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
 
-  const sample = computeTargetSize(originalWidth, originalHeight, ANALYSIS_SIDE);
-  const sampleCanvas = drawToCanvas(source, sample.width, sample.height);
+  // Salinan analisis digambar dari kanvas hasil, bukan dari sumber penuh.
+  const sample = computeTargetSize(target.width, target.height, ANALYSIS_SIDE);
+  const sampleCanvas = drawToCanvas(canvas, sample.width, sample.height);
+  canvas.width = 0;
+  canvas.height = 0;
   const pixels = sampleCanvas
     .getContext('2d')
     ?.getImageData(0, 0, sample.width, sample.height).data;
+  sampleCanvas.width = 0;
+  sampleCanvas.height = 0;
   const mutu = analyzeImagePixels(pixels ?? [], sample.width, sample.height, {
     width: originalWidth,
     height: originalHeight,
@@ -127,5 +135,10 @@ export function prepareVideoFrame(video: HTMLVideoElement): PreparedImage {
     throw new ImagePrepareError('Kamera belum siap. Tunggu sebentar lalu coba lagi.');
   }
   const frame = drawToCanvas(video, width, height);
-  return prepareFromSource(frame);
+  try {
+    return prepareFromSource(frame);
+  } finally {
+    frame.width = 0;
+    frame.height = 0;
+  }
 }
