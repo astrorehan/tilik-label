@@ -22,17 +22,23 @@ interface CameraCaptureProps {
 /** Kamera belakang lewat getUserMedia. Izin ditolak diarahkan ke unggah berkas. */
 export function CameraCapture({ onCaptured, onUseUpload, onCancel }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [state, setState] = useState<CameraState>(() =>
     typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function'
       ? { kind: 'meminta' }
       : { kind: 'tidak_ada' },
   );
 
+  const stopStream = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  };
+
   useEffect(() => {
     if (typeof navigator.mediaDevices?.getUserMedia !== 'function') {
       return;
     }
-    let stream: MediaStream | null = null;
     let cancelled = false;
     navigator.mediaDevices
       .getUserMedia({
@@ -44,7 +50,7 @@ export function CameraCapture({ onCaptured, onUseUpload, onCancel }: CameraCaptu
           media.getTracks().forEach((track) => track.stop());
           return;
         }
-        stream = media;
+        streamRef.current = media;
         const video = videoRef.current;
         if (video) {
           video.srcObject = media;
@@ -65,9 +71,14 @@ export function CameraCapture({ onCaptured, onUseUpload, onCancel }: CameraCaptu
       });
     return () => {
       cancelled = true;
-      stream?.getTracks().forEach((track) => track.stop());
+      stopStream();
     };
   }, []);
+
+  // Matikan kamera begitu tidak dipakai lagi (galat, ditolak, atau tidak tersedia).
+  useEffect(() => {
+    if (state.kind !== 'siap' && state.kind !== 'meminta') stopStream();
+  }, [state.kind]);
 
   if (state.kind === 'ditolak' || state.kind === 'tidak_ada' || state.kind === 'galat') {
     const title =
@@ -124,7 +135,9 @@ export function CameraCapture({ onCaptured, onUseUpload, onCancel }: CameraCaptu
             const video = videoRef.current;
             if (!video) return;
             try {
-              onCaptured(prepareVideoFrame(video));
+              const captured = prepareVideoFrame(video);
+              stopStream();
+              onCaptured(captured);
             } catch (error) {
               setState({
                 kind: 'galat',
