@@ -42,7 +42,7 @@ function RuleItem({ entry }: { entry: RuleCatalogEntry }) {
         <p className="text-sm leading-snug text-ink-2">{entry.caraCek}</p>
         <div className="flex flex-wrap gap-1.5">
           {entry.penanda.map((penanda) => (
-            <Pill key={penanda} tone={PENANDA_TONE[penanda]} className="whitespace-normal">
+            <Pill key={penanda} tone={PENANDA_TONE[penanda]} className="!whitespace-normal !leading-tight py-1.5 text-left">
               {PENANDA_LABEL[penanda]}
             </Pill>
           ))}
@@ -70,6 +70,7 @@ function RuleSection({ section }: { section: RuleCatalogSection }) {
             className="text-sm font-semibold text-brand-deep underline underline-offset-2"
           >
             Baca teks resmi (PDF, peraturan.go.id)
+            <span className="sr-only"> (membuka tab baru)</span>
           </a>
         </p>
       </div>
@@ -103,7 +104,7 @@ export default function AturanPage() {
               memakainya, dan hal yang belum atau tidak diperiksa.
             </p>
             <p className="mt-3">
-              <Pill tone="success" icon="check">
+              <Pill tone="neutral" className="!whitespace-normal !leading-tight py-1.5">
                 Aturan terakhir dibaca: {REGULATION_LAST_READ}
               </Pill>
             </p>
@@ -156,7 +157,8 @@ export default function AturanPage() {
             </ul>
           </Card>
           <SourceNote>
-            Semua pasal dibaca dari teks resmi pada {REGULATION_LAST_READ}. Aturan bisa berubah,
+            Pasal yang tercantum di halaman ini dibaca dari teks resmi pada {REGULATION_LAST_READ}.
+            Bahan di bagian &apos;belum terbaca&apos; belum dibaca langsung. Aturan bisa berubah,
             jadi tanggal ini ditampilkan agar kamu tahu seberapa baru isinya.
           </SourceNote>
         </section>

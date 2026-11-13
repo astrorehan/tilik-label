@@ -73,6 +73,16 @@ describe('katalog aturan', () => {
     expect(entry('G-01')?.penanda).toContain('belum_otomatis');
   });
 
+  it('cara cek menjelaskan perilaku sebenarnya', () => {
+    expect(entry('L-12')?.caraCek).toMatch(/kalimat peringatan/);
+    expect(entry('L-18')?.penanda).toContain('tidak_bisa_dari_foto');
+    expect(entry('L-18')?.caraCek).toMatch(/Pasal 63/);
+    expect(entry('L-19')?.caraCek).toMatch(/belum dijawab/);
+    for (const id of ['I-02', 'I-03', 'I-06', 'I-07']) {
+      expect(entry(id)?.caraCek, id).toMatch(/belum dijawab.*Dinas Kesehatan/);
+    }
+  });
+
   it('punya tautan resmi, daftar batasan, dan bahan belum terbaca', () => {
     for (const s of RULE_CATALOG) {
       expect(s.tautan).toBe(REGULATION_LINKS[s.peraturan as keyof typeof REGULATION_LINKS]);

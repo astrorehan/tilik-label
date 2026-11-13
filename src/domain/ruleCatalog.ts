@@ -68,9 +68,15 @@ const TIDAK_DARI_FOTO: CaraCek = {
   caraCek: 'Tidak bisa dicek dari foto, ditampilkan sebagai pengingat.',
   penanda: ['tidak_bisa_dari_foto'],
 };
-const LABEL_DAN_RESEP: CaraCek = {
-  caraCek: 'Label dan resep.',
+const LABEL_DAN_RESEP_L16: CaraCek = {
+  caraCek:
+    'Label dan resep. Klaim "tanpa" atau "bebas" dicocokkan dengan golongan bahan tambahan yang boleh diklaim, lalu dengan daftar bahan dan resep. Bila resep belum diisi, hasilnya belum bisa dipastikan.',
   penanda: ['dari_label', 'butuh_jawaban'],
+};
+const LABEL_DAN_RESEP_L18: CaraCek = {
+  caraCek:
+    'Label dan resep. Aplikasi hanya mendeteksi pertentangan dengan bahan; syarat Pasal 63 tetap perlu kamu pastikan sendiri.',
+  penanda: ['dari_label', 'butuh_jawaban', 'tidak_bisa_dari_foto'],
 };
 
 const LABEL_CARA_CEK: Record<LabelRuleId, CaraCek> = {
@@ -89,16 +95,21 @@ const LABEL_CARA_CEK: Record<LabelRuleId, CaraCek> = {
   'L-10': LABEL_DAN_JAWABAN,
   'L-11': DARI_LABEL,
   'L-12': {
-    caraCek: 'Daftar bahan dicocokkan dengan daftar alergen.',
+    caraCek:
+      'Daftar bahan dicocokkan dengan daftar alergen, dan kalimat peringatan alergen pada label juga diperiksa.',
     penanda: ['dari_label'],
   },
   'L-13': TIDAK_DARI_FOTO,
   'L-14': TIDAK_DARI_FOTO,
   'L-15': DARI_LABEL,
-  'L-16': LABEL_DAN_RESEP,
+  'L-16': LABEL_DAN_RESEP_L16,
   'L-17': DARI_LABEL,
-  'L-18': LABEL_DAN_RESEP,
-  'L-19': LABEL_DAN_JAWABAN,
+  'L-18': LABEL_DAN_RESEP_L18,
+  'L-19': {
+    caraCek:
+      'Label dan jawaban pengguna. Jawabanmu dipakai bila ada; bila petunjuk simpan sudah tercantum di label, dianggap lengkap walau pertanyaannya belum dijawab.',
+    penanda: ['dari_label', 'butuh_jawaban'],
+  },
   'L-20': DARI_LABEL,
 };
 
@@ -109,11 +120,11 @@ const PERMIT_CARA_CEK: Record<PermitRuleId, CaraCek> = {
   },
   'I-02': {
     caraCek:
-      'Dari jawabanmu apakah produk berupa pangan siap saji. Dipakai untuk menentukan jalur izin.',
+      'Dari jawabanmu apakah produk berupa pangan siap saji. Dipakai untuk menentukan jalur izin. Bila belum dijawab, ditampilkan sebagai perlu dicek ke Dinas Kesehatan.',
     penanda: ['butuh_jawaban'],
   },
   'I-03': {
-    caraCek: 'Dari jawabanmu tentang tempat produksi. Dipakai untuk menentukan jalur izin.',
+    caraCek: 'Dari jawabanmu tentang tempat produksi. Dipakai untuk menentukan jalur izin. Bila belum dijawab, ditampilkan sebagai perlu dicek ke Dinas Kesehatan.',
     penanda: ['butuh_jawaban'],
   },
   'I-04': {
@@ -126,11 +137,11 @@ const PERMIT_CARA_CEK: Record<PermitRuleId, CaraCek> = {
     penanda: ['dari_label'],
   },
   'I-06': {
-    caraCek: 'Dari jawabanmu tentang penanganan khusus. Dipakai untuk menentukan jalur izin.',
+    caraCek: 'Dari jawabanmu tentang penanganan khusus. Dipakai untuk menentukan jalur izin. Bila belum dijawab, ditampilkan sebagai perlu dicek ke Dinas Kesehatan.',
     penanda: ['butuh_jawaban'],
   },
   'I-07': {
-    caraCek: 'Dari jawabanmu apakah produk wajib SNI. Dipakai untuk menentukan jalur izin.',
+    caraCek: 'Dari jawabanmu apakah produk wajib SNI. Dipakai untuk menentukan jalur izin. Bila belum dijawab, ditampilkan sebagai perlu dicek ke Dinas Kesehatan.',
     penanda: ['butuh_jawaban'],
   },
   'I-08': {
