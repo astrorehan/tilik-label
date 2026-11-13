@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/surface';
@@ -32,24 +32,29 @@ function DoorButton({
   title,
   body,
   onClick,
+  disabled,
 }: {
   icon: IconName;
   title: string;
   body: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-start gap-4 rounded-[20px] border border-line bg-surface p-5 text-left transition-[border-color,background-color] duration-150 hover:border-brand hover:bg-brand-tint/40"
+      disabled={disabled}
+      className="flex w-full items-start gap-4 rounded-[20px] border border-line bg-surface p-5 text-left transition-[border-color,background-color] duration-150 hover:border-brand hover:bg-brand-tint/40 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-line disabled:hover:bg-surface"
     >
       <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand-deep">
         <Icon name={icon} size={24} />
       </span>
       <span className="min-w-0">
         <span className="block text-base font-semibold text-ink">{title}</span>
-        <span className="mt-1 block text-sm leading-snug text-ink-2">{body}</span>
+        <span className="mt-1 block text-sm leading-snug text-ink-2">
+          {body}
+        </span>
       </span>
     </button>
   );
@@ -68,6 +73,17 @@ export function StartStep({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const regionRef = useRef<HTMLDivElement>(null);
+  const firstRender = useRef(true);
+
+  // Setelah berpindah antara pilihan dan kamera, fokus ikut pindah ke area yang baru.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    regionRef.current?.focus();
+  }, [mode]);
 
   const openFilePicker = () => {
     setMode('pilih');
@@ -82,7 +98,9 @@ export function StartStep({
       onImage(await prepareImageFile(file));
     } catch (caught) {
       setError(
-        caught instanceof ImagePrepareError ? caught.message : 'Gambar gagal diolah. Coba berkas lain.',
+        caught instanceof ImagePrepareError
+          ? caught.message
+          : 'Gambar gagal diolah. Coba berkas lain.',
       );
     } finally {
       setBusy(false);
@@ -93,9 +111,9 @@ export function StartStep({
   return (
     <div className="space-y-5">
       <Notice tone="info" title="Ke mana gambarmu dikirim?" icon="shield">
-        Gambar dikecilkan dulu di HP-mu, lalu dikirim ke penyedia model bahasa untuk dibaca isinya.
-        Gambar tidak disimpan di server Tilik Label. Isi label yang terbaca selalu ditampilkan dulu
-        supaya bisa kamu betulkan.
+        Gambar dikecilkan dulu di HP-mu, lalu dikirim ke penyedia model bahasa
+        untuk dibaca isinya. Gambar tidak disimpan di server Tilik Label. Isi
+        label yang terbaca selalu ditampilkan dulu supaya bisa kamu betulkan.
       </Notice>
 
       <input
@@ -132,16 +150,30 @@ export function StartStep({
           reading={reading}
         />
       ) : mode === 'kamera' ? (
-        <CameraCapture
-          onCaptured={(captured) => {
-            onImage(captured);
-            setMode('pilih');
-          }}
-          onUseUpload={openFilePicker}
-          onCancel={() => setMode('pilih')}
-        />
+        <div
+          ref={regionRef}
+          tabIndex={-1}
+          role="group"
+          aria-label="Ambil foto dengan kamera"
+          className="outline-none"
+        >
+          <CameraCapture
+            onCaptured={(captured) => {
+              onImage(captured);
+              setMode('pilih');
+            }}
+            onUseUpload={openFilePicker}
+            onCancel={() => setMode('pilih')}
+          />
+        </div>
       ) : (
-        <div className="grid gap-3">
+        <div
+          ref={regionRef}
+          tabIndex={-1}
+          role="group"
+          aria-label="Pilih cara memulai"
+          className="grid gap-3 outline-none"
+        >
           <DoorButton
             icon="camera"
             title="Foto kemasan"
@@ -150,18 +182,21 @@ export function StartStep({
               setError(null);
               setMode('kamera');
             }}
+            disabled={busy}
           />
           <DoorButton
             icon="upload"
             title="Unggah gambar label"
             body="Pilih foto atau desain label (JPG, PNG, atau WebP) dari galeri atau komputer."
             onClick={openFilePicker}
+            disabled={busy}
           />
           <DoorButton
             icon="edit"
             title="Belum punya label"
             body="Langsung isi keterangan label sendiri. Cocok bila label baru akan dibuat."
             onClick={onWithoutLabel}
+            disabled={busy}
           />
         </div>
       )}
@@ -169,7 +204,12 @@ export function StartStep({
       {!image && mode === 'pilih' && (
         <p className="text-sm text-ink-2">
           Tidak ingin mengirim gambar?{' '}
-          <Button variant="ghost" size="md" className="!min-h-11 !px-2 underline" onClick={onWithoutLabel}>
+          <Button
+            variant="ghost"
+            size="md"
+            className="!min-h-11 !px-2 underline"
+            onClick={onWithoutLabel}
+          >
             Isi sendiri saja
           </Button>
         </p>

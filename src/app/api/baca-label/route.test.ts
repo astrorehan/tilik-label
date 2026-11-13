@@ -27,11 +27,40 @@ describe('POST /api/baca-label', () => {
     expect(response.status).toBe(400);
   });
 
+  it('menolak badan terlalu besar walau tanpa content-length', async () => {
+    const big = new Uint8Array(7_000_000).fill(65);
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(big);
+        controller.close();
+      },
+    });
+    const request = new Request('http://localhost/api/baca-label', {
+      method: 'POST',
+      body: stream,
+      duplex: 'half',
+    } as RequestInit);
+    request.headers.delete('content-length');
+    const response = await POST(request);
+    expect(response.status).toBe(413);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('menolak content-length bukan angka', async () => {
+    const request = new Request('http://localhost/api/baca-label', {
+      method: 'POST',
+      headers: { 'content-length': 'abc' },
+      body: '{}',
+    });
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+  });
+
   it('tanpa kunci penyedia: arahkan isi manual tanpa memanggil jaringan', async () => {
     vi.stubEnv('LLM_DEEPSEEK_API_KEY', '');
     vi.stubEnv('LLM_HAIKU_API_KEY', '');
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    const response = await post({ gambar: 'data:image/jpeg;base64,AAAA' });
+    const response = await post({ gambar: 'data:image/jpeg;base64,/9j/4AAQ' });
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ ok: false, arahan: 'isi_manual' });
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -52,7 +81,7 @@ describe('POST /api/baca-label: batas pemanggilan', () => {
         new Request('http://localhost/api/baca-label', {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9' },
-          body: JSON.stringify({ gambar: 'data:image/jpeg;base64,AAAA' }),
+          body: JSON.stringify({ gambar: 'data:image/jpeg;base64,/9j/4AAQ' }),
         }),
       );
     let last: Response | undefined;
@@ -69,7 +98,7 @@ describe('POST /api/baca-label: asal permintaan', () => {
       new Request('http://localhost/api/baca-label', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' },
-        body: JSON.stringify({ gambar: 'data:image/jpeg;base64,AAAA' }),
+        body: JSON.stringify({ gambar: 'data:image/jpeg;base64,/9j/4AAQ' }),
       }),
     );
     expect(response.status).toBe(403);

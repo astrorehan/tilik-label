@@ -97,11 +97,28 @@ export function parseImageDataUrl(value: unknown): ReaderImage | null {
   if (!match?.[1] || !match[2]) {
     return null;
   }
-  return {
-    dataUrl: value,
-    mediaType: match[1] as ReaderImage['mediaType'],
-    base64: match[2],
-  };
+  const mediaType = match[1] as ReaderImage['mediaType'];
+  const base64 = match[2];
+  if (base64.length % 4 !== 0 || !hasMagicBytes(mediaType, base64)) {
+    return null;
+  }
+  return { dataUrl: value, mediaType, base64 };
+}
+
+/** Memeriksa byte awal gambar sesuai jenisnya (JPEG, PNG, WebP). */
+function hasMagicBytes(mediaType: ReaderImage['mediaType'], base64: string): boolean {
+  const head = Buffer.from(base64.slice(0, 16), 'base64');
+  if (mediaType === 'image/jpeg') {
+    return head.length >= 3 && head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+  }
+  if (mediaType === 'image/png') {
+    return head.length >= 4 && head[0] === 0x89 && head.toString('latin1', 1, 4) === 'PNG';
+  }
+  return (
+    head.length >= 12 &&
+    head.toString('latin1', 0, 4) === 'RIFF' &&
+    head.toString('latin1', 8, 12) === 'WEBP'
+  );
 }
 
 export type FetchLike = typeof fetch;
@@ -178,6 +195,7 @@ export async function callHaiku(
 ): Promise<string> {
   const client = new Anthropic({
     apiKey: config.apiKey,
+    authToken: null,
     baseURL: config.baseUrl,
     maxRetries: 0,
     ...(options.fetchImpl ? { fetch: options.fetchImpl } : {}),
