@@ -125,9 +125,12 @@ export default function HomePage() {
                   <span className="type-eyebrow text-xs">Pratinjau contoh pemeriksaan</span>
                   <h2 className="type-h2 mt-1 text-ink">{sampleCase.judul}</h2>
                 </div>
-                <Pill tone="danger" dot>
-                  {previewReport.ringkasan.kurang} butir kurang
-                </Pill>
+                <div className="flex flex-wrap gap-2">
+                  <Pill tone="gold">Contoh rekaan</Pill>
+                  <Pill tone="danger" dot>
+                    {previewReport.ringkasan.kurang} butir kurang
+                  </Pill>
+                </div>
               </div>
 
               <div className="mt-5 grid gap-6 lg:grid-cols-12">
