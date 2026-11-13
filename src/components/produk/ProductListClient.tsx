@@ -213,6 +213,14 @@ function ProductCard({
             >
               Buka lagi
             </ButtonLink>
+            <ButtonLink
+              href={`/cetak?produk=${encodeURIComponent(product.id)}`}
+              size="md"
+              variant="secondary"
+              icon="printer"
+            >
+              Label &amp; ringkasan
+            </ButtonLink>
             <Button
               variant="secondary"
               size="md"
