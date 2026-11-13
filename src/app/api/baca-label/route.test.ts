@@ -81,7 +81,7 @@ describe('POST /api/baca-label: batas pemanggilan', () => {
         new Request('http://localhost/api/baca-label', {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9' },
-          body: JSON.stringify({ gambar: 'data:image/jpeg;base64,AAAA' }),
+          body: JSON.stringify({ gambar: 'data:image/jpeg;base64,/9j/4AAQ' }),
         }),
       );
     let last: Response | undefined;
@@ -98,7 +98,7 @@ describe('POST /api/baca-label: asal permintaan', () => {
       new Request('http://localhost/api/baca-label', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' },
-        body: JSON.stringify({ gambar: 'data:image/jpeg;base64,AAAA' }),
+        body: JSON.stringify({ gambar: 'data:image/jpeg;base64,/9j/4AAQ' }),
       }),
     );
     expect(response.status).toBe(403);
