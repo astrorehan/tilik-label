@@ -67,6 +67,24 @@ describe('validateExtraction', () => {
     expect(result.ok && result.label.nomorIzinTeks).toBe('');
   });
 
+  it('butir terbaca tetapi teks kosong dianggap tidak terbaca', () => {
+    const result = validateExtraction(makeRaw({ namaProduk: { status: 'terbaca', teks: '   ' } }));
+    expect(result.ok && result.tidakTerbaca).toEqual(['namaProduk']);
+    expect(result.ok && result.label.namaProduk).toBe('');
+  });
+
+  it('menolak kunci tambahan di akar, butir, tiap butir, dan pernyataan lain', () => {
+    expect(validateExtraction({ ...makeRaw(), ekstra: 1 }).ok).toBe(false);
+    const withExtraField = makeRaw();
+    (withExtraField.butir as Record<string, unknown>).lain = { status: 'tidak_ada', teks: '' };
+    expect(validateExtraction(withExtraField).ok).toBe(false);
+    expect(
+      validateExtraction(makeRaw({ namaProduk: { status: 'terbaca', teks: 'a', catatan: 'x' } as { status: string; teks: string } })).ok,
+    ).toBe(false);
+    const claims = { ...makeRaw(), pernyataanLain: { status: 'tidak_ada', daftar: [], x: 1 } };
+    expect(validateExtraction(claims).ok).toBe(false);
+  });
+
   it('pernyataan lain tidak terbaca ikut ditandai', () => {
     const raw = { ...makeRaw(), pernyataanLain: { status: 'tidak_terbaca', daftar: [] } };
     const result = validateExtraction(raw);
