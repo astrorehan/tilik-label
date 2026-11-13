@@ -1,28 +1,36 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { bodyFont, displayFont, monoFont } from './fonts';
 import './globals.css';
 
-const geistSans = Geist({
-  subsets: ['latin'],
-  variable: '--font-geist-sans',
-});
-
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
-  variable: '--font-geist-mono',
-});
-
 export const metadata: Metadata = {
-  title: 'Tilik Label — Cek dulu, baru cetak.',
+  title: {
+    default: 'Tilik Label — Cek dulu, baru cetak.',
+    template: '%s · Tilik Label',
+  },
   description:
     'Pemeriksa label kemasan untuk pembuat makanan rumahan berdasarkan Peraturan BPOM. Cek kekurangan label sebelum mencetak.',
 };
 
+export const viewport: Viewport = {
+  themeColor: '#0b2545',
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="id" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="min-h-[100dvh] bg-stone-50 text-stone-900 antialiased">
+    <html
+      lang="id"
+      className={`${bodyFont.variable} ${displayFont.variable} ${monoFont.variable}`}
+    >
+      <body>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-[8px] focus:bg-ink focus:p-4 focus:text-paper"
+        >
+          Lewati ke isi halaman
+        </a>
         {children}
       </body>
     </html>

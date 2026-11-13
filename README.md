@@ -61,6 +61,11 @@ Next.js dengan TypeScript, Tailwind CSS, dan Vitest. Pembacaan foto memakai mode
 
 Login dan akun, pendaftaran izin secara daring, pembayaran, toko daring, uji laboratorium, dan jaminan lolos izin.
 
+## Penggunaan template dan aset
+
+- Komponen antarmuka (`src/components/ui`, ikon, dan token warna) diadaptasi dari proyek tim sebelumnya.
+- Font [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next), Atkinson Hyperlegible Mono, dan [Mona Sans](https://github.com/github/mona-sans) dengan lisensi SIL Open Font License. Teks lisensinya ada di `src/app/fonts/`.
+
 ## Dokumen
 
 - [docs/PRD.md](docs/PRD.md): kebutuhan produk, fitur, aturan yang diperiksa, batasan, dan rencana kerja.
