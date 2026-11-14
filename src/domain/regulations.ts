@@ -1,4 +1,4 @@
-import type { LabelRuleId, PermitRuleId, RegulationReference } from './types';
+import type { LabelRuleId, NutritionRuleId, PermitRuleId, RegulationReference } from './types';
 
 export const REGULATION_LAST_READ = '12 November 2026';
 
@@ -127,5 +127,38 @@ export const PERMIT_RULE_METADATA: Record<
   'I-08': {
     judul: 'Jenis pangan termasuk yang diizinkan di Lampiran I',
     rujukan: { peraturan: BPOM_4_2024, pasal: 'Pasal 5 dan Pasal 9' },
+  },
+};
+
+export const NUTRITION_RULE_METADATA: Record<
+  NutritionRuleId,
+  { judul: string; rujukan: RegulationReference }
+> = {
+  'G-01': {
+    judul: 'Tabel nilai gizi wajib dicantumkan',
+    rujukan: { peraturan: BPOM_10_2026, pasal: 'Pasal 2' },
+  },
+  'G-02': {
+    judul:
+      'Dikecualikan untuk kopi bubuk, kopi instan, teh kering, air minum dalam kemasan, herba, rempah, bawang hitam, cuka makan, ragi, dan beberapa lainnya',
+    rujukan: { peraturan: BPOM_10_2026, pasal: 'Pasal 3' },
+  },
+  'G-03': {
+    judul: 'Usaha mikro boleh memakai hasil uji lab atau nilai yang ditetapkan Kepala BPOM',
+    rujukan: { peraturan: BPOM_10_2026, pasal: 'Pasal 7 ayat 1' },
+  },
+  'G-04': {
+    judul:
+      'Bila keduanya tidak tersedia, tabel dicantumkan berdasarkan hitungan dari bahan, dengan tata cara yang ditetapkan Kepala BPOM',
+    rujukan: { peraturan: BPOM_10_2026, pasal: 'Pasal 7 ayat 2 dan 3' },
+  },
+  'G-05': {
+    judul: 'Tabel dicantumkan per satu takaran saji',
+    rujukan: { peraturan: BPOM_10_2026, pasal: 'Pasal 8' },
+  },
+  'G-06': {
+    judul:
+      'Produk yang sudah berizin wajib menyesuaikan paling lambat 24 bulan sejak aturan diundangkan, termasuk produk industri rumah tangga',
+    rujukan: { peraturan: BPOM_10_2026, pasal: 'Pasal 31' },
   },
 };
