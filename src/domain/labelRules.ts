@@ -116,7 +116,9 @@ const HEALTH_CLAIM_PATTERNS = [
 const GENERAL_FREE_BTP_PATTERN =
   /\b(bebas|tanpa|tidak mengandung|non)[\s-]+(bahan tambahan pangan|btp|zat aditif|bahan kimia)\b/i;
 
-const NATURAL_CLAIM_PATTERN = /\b(alami|murni|100%|100 persen|asli|segar)\b/gi;
+// Batas kata memakai lookaround karena "%" bukan karakter kata, sehingga "\b" setelah "100%" tidak pernah cocok.
+const NATURAL_CLAIM_PATTERN =
+  /(?<![\p{L}\p{N}_])(?:(?:alami|murni|100 persen|asli|segar)(?![\p{L}\p{N}_])|100%)/giu;
 
 const ENGLISH_MANDATORY_MARKERS = [
   /\bingredients\s*:/i,
@@ -126,7 +128,7 @@ const ENGLISH_MANDATORY_MARKERS = [
   /\bexpired\s*date\b/i,
   /\bmanufactured\s*by\b/i,
   /\bproduced\s*by\b/i,
-  /\bcontains\s+allergen\b/i,
+  /\bcontains\s+allergens?\b/i,
   /\bkeep\s+refrigerated\b/i,
 ];
 
