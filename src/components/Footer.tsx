@@ -6,6 +6,7 @@ const FOOTER_LINKS = [
   { href: '/', label: 'Beranda' },
   { href: '/contoh', label: 'Contoh untuk juri' },
   { href: '/periksa', label: 'Periksa isi label' },
+  { href: '/produk', label: 'Produk saya' },
   { href: '/aturan', label: 'Aturan dan batasan' },
 ];
 

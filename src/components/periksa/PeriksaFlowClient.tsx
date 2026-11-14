@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LabelReportView } from '@/components/LabelReportView';
 import { Button } from '@/components/ui/button';
+import { SaveProductButton } from '@/components/produk/SaveProductButton';
 import { Notice } from '@/components/ui/surface';
 import {
   createEmptyAnswers,
@@ -39,7 +40,15 @@ export interface PeriksaFlowInitial {
   step?: FlowStep;
 }
 
-export function PeriksaFlowClient({ initial }: { initial?: PeriksaFlowInitial }) {
+export function PeriksaFlowClient({
+  initial,
+  productId: initialProductId,
+}: {
+  initial?: PeriksaFlowInitial;
+  /** Id produk di Produk saya bila alur ini dibuka dari daftar itu. */
+  productId?: string;
+}) {
+  const [productId, setProductId] = useState<string | undefined>(initialProductId);
   const [step, setStep] = useState<FlowStep>(initial?.step ?? 'isi');
   const [label, setLabel] = useState<LabelData>(() => initial?.label ?? createEmptyLabelData());
   const [answers, setAnswers] = useState<AdditionalAnswers>(
@@ -119,6 +128,8 @@ export function PeriksaFlowClient({ initial }: { initial?: PeriksaFlowInitial })
         <ResultStep
           label={prepared.label}
           answers={prepared.answers}
+          productId={productId}
+          onSaved={setProductId}
           onEditLabel={() => setStep('isi')}
           onEditAnswers={() => setStep('tanya')}
         />
@@ -130,11 +141,15 @@ export function PeriksaFlowClient({ initial }: { initial?: PeriksaFlowInitial })
 function ResultStep({
   label,
   answers,
+  productId,
+  onSaved,
   onEditLabel,
   onEditAnswers,
 }: {
   label: LabelData;
   answers: AdditionalAnswers;
+  productId?: string;
+  onSaved: (id: string) => void;
   onEditLabel: () => void;
   onEditAnswers: () => void;
 }) {
@@ -145,6 +160,18 @@ function ResultStep({
     <div className="space-y-6">
       <PermitPathView result={permit} />
       <LabelReportView report={report} productTitle={label.namaProduk || 'Label tanpa nama'} />
+      <div className="panel p-5 sm:p-6">
+        <h2 className="type-h3 text-ink">Simpan hasil ini</h2>
+        <p className="mt-1 mb-3 text-sm leading-snug text-ink-2">
+          Simpan isi label dan jawabanmu ke Produk saya supaya bisa dibuka lagi nanti dari HP ini.
+        </p>
+        <SaveProductButton
+          label={label}
+          answers={answers}
+          productId={productId}
+          onSaved={(product) => onSaved(product.id)}
+        />
+      </div>
       <div className="flex flex-col gap-2.5 sm:flex-row">
         <Button variant="secondary" size="lg" icon="edit" onClick={onEditLabel}>
           Ubah isi label
