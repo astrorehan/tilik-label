@@ -12,6 +12,8 @@ import {
 } from '@/lib/image/prepareImage';
 import { CameraCapture } from './CameraCapture';
 import { ImageCheck } from './ImageCheck';
+import { PhotoGuide } from './PhotoGuide';
+import { SamplePhotos, samplePhotoUrl, type SamplePhoto } from './SamplePhotos';
 
 type Mode = 'pilih' | 'kamera';
 
@@ -90,22 +92,32 @@ export function StartStep({
     fileRef.current?.click();
   };
 
-  const handleFile = async (file: File | undefined) => {
-    if (!file) return;
+  const prepare = async (load: () => Promise<Blob>, fallbackError: string) => {
     setBusy(true);
     setError(null);
     try {
-      onImage(await prepareImageFile(file));
+      onImage(await prepareImageFile(await load()));
     } catch (caught) {
       setError(
-        caught instanceof ImagePrepareError
-          ? caught.message
-          : 'Gambar gagal diolah. Coba berkas lain.',
+        caught instanceof ImagePrepareError ? caught.message : fallbackError,
       );
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = '';
     }
+  };
+
+  const handleFile = (file: File | undefined) => {
+    if (!file) return;
+    void prepare(async () => file, 'Gambar gagal diolah. Coba berkas lain.');
+  };
+
+  const handleSample = (photo: SamplePhoto) => {
+    void prepare(async () => {
+      const response = await fetch(samplePhotoUrl(photo));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.blob();
+    }, 'Foto contoh gagal dimuat. Periksa sambungan internet lalu coba lagi.');
   };
 
   return (
@@ -123,7 +135,7 @@ export function StartStep({
         className="sr-only"
         tabIndex={-1}
         aria-hidden
-        onChange={(event) => void handleFile(event.target.files?.[0])}
+        onChange={(event) => handleFile(event.target.files?.[0])}
       />
 
       {error && (
@@ -167,37 +179,41 @@ export function StartStep({
           />
         </div>
       ) : (
-        <div
-          ref={regionRef}
-          tabIndex={-1}
-          role="group"
-          aria-label="Pilih cara memulai"
-          className="grid gap-3 outline-none"
-        >
-          <DoorButton
-            icon="camera"
-            title="Foto kemasan"
-            body="Pakai kamera HP untuk memotret label yang sudah tercetak."
-            onClick={() => {
-              setError(null);
-              setMode('kamera');
-            }}
-            disabled={busy}
-          />
-          <DoorButton
-            icon="upload"
-            title="Unggah gambar label"
-            body="Pilih foto atau desain label (JPG, PNG, atau WebP) dari galeri atau komputer."
-            onClick={openFilePicker}
-            disabled={busy}
-          />
-          <DoorButton
-            icon="edit"
-            title="Belum punya label"
-            body="Langsung isi keterangan label sendiri. Cocok bila label baru akan dibuat."
-            onClick={onWithoutLabel}
-            disabled={busy}
-          />
+        <div className="space-y-5">
+          <PhotoGuide />
+          <div
+            ref={regionRef}
+            tabIndex={-1}
+            role="group"
+            aria-label="Pilih cara memulai"
+            className="grid gap-3 outline-none"
+          >
+            <DoorButton
+              icon="camera"
+              title="Foto kemasan"
+              body="Pakai kamera HP untuk memotret label yang sudah tercetak."
+              onClick={() => {
+                setError(null);
+                setMode('kamera');
+              }}
+              disabled={busy}
+            />
+            <DoorButton
+              icon="upload"
+              title="Unggah gambar label"
+              body="Pilih foto atau desain label (JPG, PNG, atau WebP) dari galeri atau komputer."
+              onClick={openFilePicker}
+              disabled={busy}
+            />
+            <DoorButton
+              icon="edit"
+              title="Belum punya label"
+              body="Langsung isi keterangan label sendiri. Cocok bila label baru akan dibuat."
+              onClick={onWithoutLabel}
+              disabled={busy}
+            />
+          </div>
+          <SamplePhotos onPick={handleSample} disabled={busy} />
         </div>
       )}
 
