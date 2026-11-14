@@ -1,4 +1,4 @@
-import type { LabelRuleId, RegulationReference } from './types';
+import type { LabelRuleId, PermitRuleId, RegulationReference } from './types';
 
 export const REGULATION_LAST_READ = '12 November 2026';
 
@@ -89,5 +89,43 @@ export const LABEL_RULE_METADATA: Record<
   'L-20': {
     judul: 'Keterangan wajib ditulis dalam bahasa Indonesia',
     rujukan: { peraturan: BPOM_31_2018, pasal: 'Pasal 7' },
+  },
+};
+
+export const PERMIT_RULE_METADATA: Record<
+  PermitRuleId,
+  { judul: string; rujukan: RegulationReference }
+> = {
+  'I-01': {
+    judul: 'Tidak wajib SPP-IRT bila umur simpan kurang dari 7 hari',
+    rujukan: { peraturan: BPOM_4_2024, pasal: 'Pasal 3' },
+  },
+  'I-02': {
+    judul: 'Tidak wajib SPP-IRT bila berupa pangan siap saji',
+    rujukan: { peraturan: BPOM_4_2024, pasal: 'Pasal 3' },
+  },
+  'I-03': {
+    judul: 'Tempat produksi di rumah tinggal atau rumah toko yang ditinggali pemilik',
+    rujukan: { peraturan: BPOM_4_2024, pasal: 'Pasal 5' },
+  },
+  'I-04': {
+    judul: 'Alat produksi manual sampai semi otomatis',
+    rujukan: { peraturan: BPOM_4_2024, pasal: 'Pasal 5' },
+  },
+  'I-05': {
+    judul: 'Label tidak mencantumkan klaim',
+    rujukan: { peraturan: BPOM_4_2024, pasal: 'Pasal 10' },
+  },
+  'I-06': {
+    judul: 'Produk tidak butuh penanganan khusus dalam produksi atau distribusi',
+    rujukan: { peraturan: BPOM_4_2024, pasal: 'Pasal 10' },
+  },
+  'I-07': {
+    judul: 'Produk tidak termasuk pangan wajib SNI',
+    rujukan: { peraturan: BPOM_4_2024, pasal: 'Pasal 10' },
+  },
+  'I-08': {
+    judul: 'Jenis pangan termasuk yang diizinkan di Lampiran I',
+    rujukan: { peraturan: BPOM_4_2024, pasal: 'Pasal 5 dan Pasal 9' },
   },
 };
