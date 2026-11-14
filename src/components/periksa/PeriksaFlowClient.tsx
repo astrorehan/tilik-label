@@ -14,14 +14,38 @@ import {
   getUnansweredQuestions,
   prepareForCheck,
 } from '@/domain';
-import type { AdditionalAnswers, LabelData } from '@/domain';
+import { EXTRACTION_TEXT_FIELDS } from '@/domain/labelExtraction';
+import type { AdditionalAnswers, LabelData, LabelFieldKey } from '@/domain';
 import type { PreparedImage } from '@/lib/image/prepareImage';
+import { requestLabelRead } from '@/lib/readLabelClient';
 import { LabelForm } from './LabelForm';
 import { LabelImageReference } from './LabelImageReference';
 import { PermitPathView } from './PermitPathView';
 import { QuestionsStep } from './QuestionsStep';
 import { StartStep } from './StartStep';
 import { StepIndicator, type FlowStep } from './StepIndicator';
+
+/** Batas waktu menunggu hasil baca di sisi klien (ms). */
+const READ_TIMEOUT_MS = 35_000;
+
+type ReadNotice = {
+  tone: 'success' | 'warning';
+  title: string;
+  body: string;
+  /** Kegagalan diumumkan tegas (role alert); selebihnya sopan (role status). */
+  failed?: boolean;
+};
+
+interface PendingRead {
+  label: LabelData;
+}
+
+function hasTypedLabel(label: LabelData): boolean {
+  return (
+    label.pernyataanLain.length > 0 ||
+    EXTRACTION_TEXT_FIELDS.some((field) => label[field].trim() !== '')
+  );
+}
 
 const STEP_HEADINGS: Record<FlowStep, { title: string; lead: string }> = {
   mulai: {
@@ -59,12 +83,80 @@ export function PeriksaFlowClient({
   const [productId, setProductId] = useState<string | undefined>(initialProductId);
   const [step, setStep] = useState<FlowStep>(initial?.step ?? 'mulai');
   const [image, setImage] = useState<PreparedImage | null>(null);
+  const [reading, setReading] = useState(false);
+  const [readNotice, setReadNotice] = useState<ReadNotice | null>(null);
+  const [pendingRead, setPendingRead] = useState<PendingRead | null>(null);
+  const mountedRef = useRef(true);
+  const readAbortRef = useRef<AbortController | null>(null);
   const [label, setLabel] = useState<LabelData>(() => initial?.label ?? createEmptyLabelData());
   const [answers, setAnswers] = useState<AdditionalAnswers>(
     () => initial?.answers ?? createEmptyAnswers(),
   );
   const headingRef = useRef<HTMLHeadingElement>(null);
   const firstRender = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      readAbortRef.current?.abort();
+    };
+  }, []);
+
+  const clearRead = () => {
+    setReadNotice(null);
+    setPendingRead(null);
+  };
+
+  const runRead = async (dataUrl: string) => {
+    const controller = new AbortController();
+    readAbortRef.current = controller;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, READ_TIMEOUT_MS);
+    setReading(true);
+    const result = await requestLabelRead(dataUrl, controller.signal);
+    clearTimeout(timer);
+    if (readAbortRef.current === controller) readAbortRef.current = null;
+    if (!mountedRef.current) return;
+    setReading(false);
+    if (result.ok) {
+      const notice: ReadNotice = {
+        tone: result.tidakTerbaca.length > 0 ? 'warning' : 'success',
+        title: 'Isi label sudah dibaca. Periksa dulu sebelum lanjut.',
+        body:
+          result.tidakTerbaca.length > 0
+            ? `${result.tidakTerbaca.length} isian tidak terbaca dan ditandai di bawah. Lengkapi sesuai kemasan, dan betulkan isian lain yang salah baca.`
+            : 'Bandingkan setiap isian dengan kemasanmu dan betulkan yang salah baca. Hasil pemeriksaan memakai isian yang kamu sahkan.',
+      };
+      if (hasTypedLabel(label)) {
+        // Jangan menimpa isian yang sudah diketik tanpa persetujuan.
+        setPendingRead({ label: result.label });
+        setReadNotice({
+          ...notice,
+          title: 'Isi label sudah dibaca, tetapi kamu sudah mengisi sendiri.',
+          body: 'Pilih mau memakai hasil baca atau tetap dengan isianmu.',
+        });
+      } else {
+        setLabel(result.label);
+        setPendingRead(null);
+        setReadNotice(notice);
+      }
+    } else {
+      setPendingRead(null);
+      setReadNotice({
+        tone: 'warning',
+        failed: true,
+        title: 'Label belum bisa dibaca otomatis',
+        body: timedOut
+          ? 'Pembacaan terlalu lama. Coba lagi, atau isi keterangan label sendiri.'
+          : result.pesan,
+      });
+    }
+    setStep('isi');
+  };
 
   useEffect(() => {
     if (firstRender.current) {
@@ -93,11 +185,19 @@ export function PeriksaFlowClient({
       {step === 'mulai' && (
         <StartStep
           image={image}
-          onImage={setImage}
+          onImage={(next) => {
+            setImage(next);
+            clearRead();
+          }}
           onContinue={() => setStep('isi')}
           onWithoutLabel={() => {
             setImage(null);
+            clearRead();
             setStep('isi');
+          }}
+          reading={reading}
+          onRead={() => {
+            if (image && !reading) void runRead(image.dataUrl);
           }}
         />
       )}
@@ -112,7 +212,42 @@ export function PeriksaFlowClient({
             setStep('tanya');
           }}
         >
-          <LabelForm value={label} onChange={setLabel} />
+          {readNotice && (
+            <div role={readNotice.failed ? 'alert' : 'status'}>
+              <Notice tone={readNotice.tone} title={readNotice.title}>
+                {readNotice.body}
+                {pendingRead && (
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      size="md"
+                      onClick={() => {
+                        setLabel(pendingRead.label);
+                        setPendingRead(null);
+                        setReadNotice({
+                          tone: 'success',
+                          title: 'Isianmu diganti dengan hasil baca. Periksa dulu sebelum lanjut.',
+                          body: 'Bandingkan setiap isian dengan kemasanmu dan betulkan yang salah baca.',
+                        });
+                      }}
+                    >
+                      Ganti dengan hasil baca
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => {
+                        setPendingRead(null);
+                        setReadNotice(null);
+                      }}
+                    >
+                      Biarkan isianku
+                    </Button>
+                  </div>
+                )}
+              </Notice>
+            </div>
+          )}
+          <LabelForm value={label} onChange={setLabel} renderFieldNote={(key) => unreadableNote(label, key)} />
           <div className="flex flex-col-reverse gap-2.5 border-t border-line pt-5 sm:flex-row sm:justify-between">
             <Button variant="secondary" size="lg" icon="arrowLeft" onClick={() => setStep('mulai')}>
               Kembali
@@ -161,6 +296,15 @@ export function PeriksaFlowClient({
         />
       )}
     </div>
+  );
+}
+
+function unreadableNote(label: LabelData, key: LabelFieldKey) {
+  if (!label.unreadableFields?.includes(key)) return undefined;
+  return (
+    <span className="font-semibold text-warning-ink">
+      Tidak terbaca dari foto. Isi sendiri sesuai kemasan.
+    </span>
   );
 }
 

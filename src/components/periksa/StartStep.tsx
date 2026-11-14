@@ -1,19 +1,19 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
-import { Icon, type IconName } from "@/components/icons/icon";
-import { Button } from "@/components/ui/button";
-import { Notice } from "@/components/ui/surface";
+import { useEffect, useRef, useState } from 'react';
+import { Icon, type IconName } from '@/components/icons/icon';
+import { Button } from '@/components/ui/button';
+import { Notice } from '@/components/ui/surface';
 import {
   ACCEPTED_IMAGE_TYPES,
   ImagePrepareError,
   prepareImageFile,
   type PreparedImage,
-} from "@/lib/image/prepareImage";
-import { CameraCapture } from "./CameraCapture";
-import { ImageCheck } from "./ImageCheck";
+} from '@/lib/image/prepareImage';
+import { CameraCapture } from './CameraCapture';
+import { ImageCheck } from './ImageCheck';
 
-type Mode = "pilih" | "kamera";
+type Mode = 'pilih' | 'kamera';
 
 interface StartStepProps {
   image: PreparedImage | null;
@@ -22,6 +22,9 @@ interface StartStepProps {
   onContinue: () => void;
   /** Pintu "belum punya label": langsung ke isian kosong. */
   onWithoutLabel: () => void;
+  /** Membaca isi label dari gambar lewat server. */
+  onRead?: () => void;
+  reading?: boolean;
 }
 
 function DoorButton({
@@ -63,8 +66,10 @@ export function StartStep({
   onImage,
   onContinue,
   onWithoutLabel,
+  onRead,
+  reading,
 }: StartStepProps) {
-  const [mode, setMode] = useState<Mode>("pilih");
+  const [mode, setMode] = useState<Mode>('pilih');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -81,7 +86,7 @@ export function StartStep({
   }, [mode]);
 
   const openFilePicker = () => {
-    setMode("pilih");
+    setMode('pilih');
     fileRef.current?.click();
   };
 
@@ -95,11 +100,11 @@ export function StartStep({
       setError(
         caught instanceof ImagePrepareError
           ? caught.message
-          : "Gambar gagal diolah. Coba berkas lain.",
+          : 'Gambar gagal diolah. Coba berkas lain.',
       );
     } finally {
       setBusy(false);
-      if (fileRef.current) fileRef.current.value = "";
+      if (fileRef.current) fileRef.current.value = '';
     }
   };
 
@@ -114,7 +119,7 @@ export function StartStep({
       <input
         ref={fileRef}
         type="file"
-        accept={ACCEPTED_IMAGE_TYPES.join(",")}
+        accept={ACCEPTED_IMAGE_TYPES.join(',')}
         className="sr-only"
         tabIndex={-1}
         aria-hidden
@@ -138,11 +143,13 @@ export function StartStep({
           image={image}
           onRetake={() => {
             onImage(null);
-            setMode("pilih");
+            setMode('pilih');
           }}
           onContinue={onContinue}
+          onRead={onRead}
+          reading={reading}
         />
-      ) : mode === "kamera" ? (
+      ) : mode === 'kamera' ? (
         <div
           ref={regionRef}
           tabIndex={-1}
@@ -153,10 +160,10 @@ export function StartStep({
           <CameraCapture
             onCaptured={(captured) => {
               onImage(captured);
-              setMode("pilih");
+              setMode('pilih');
             }}
             onUseUpload={openFilePicker}
-            onCancel={() => setMode("pilih")}
+            onCancel={() => setMode('pilih')}
           />
         </div>
       ) : (
@@ -173,7 +180,7 @@ export function StartStep({
             body="Pakai kamera HP untuk memotret label yang sudah tercetak."
             onClick={() => {
               setError(null);
-              setMode("kamera");
+              setMode('kamera');
             }}
             disabled={busy}
           />
@@ -194,9 +201,9 @@ export function StartStep({
         </div>
       )}
 
-      {!image && mode === "pilih" && (
+      {!image && mode === 'pilih' && (
         <p className="text-sm text-ink-2">
-          Tidak ingin mengirim gambar?{" "}
+          Tidak ingin mengirim gambar?{' '}
           <Button
             variant="ghost"
             size="md"
