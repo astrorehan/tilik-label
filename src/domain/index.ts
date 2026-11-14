@@ -6,3 +6,4 @@ export * from './permitRules';
 export * from './ruleCatalog';
 export * from './questions';
 export * from './correctedLabel';
+export * from './assistant';

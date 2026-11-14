@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { AssistantBox, RuleAssistant } from '@/components/asisten/AssistantBox';
 import { LabelReportView } from '@/components/LabelReportView';
 import { Button } from '@/components/ui/button';
 import { BukaCetakButton } from '@/components/cetak/BukaCetakButton';
@@ -329,7 +330,20 @@ function ResultStep({
   return (
     <div className="space-y-6">
       <PermitPathView result={permit} />
-      <LabelReportView report={report} productTitle={label.namaProduk || 'Label tanpa nama'} />
+      <AssistantBox
+        label={label}
+        answers={answers}
+        title="Ada yang belum jelas? Tanyakan ke asisten tentang hasil ini."
+      />
+      <LabelReportView
+        report={report}
+        productTitle={label.namaProduk || 'Label tanpa nama'}
+        renderRuleExtra={(item) =>
+          item.status === 'lengkap' ? null : (
+            <RuleAssistant label={label} answers={answers} ruleId={item.id} />
+          )
+        }
+      />
       <div className="panel p-5 sm:p-6">
         <h2 className="type-h3 text-ink">Simpan hasil ini</h2>
         <p className="mt-1 mb-3 text-sm leading-snug text-ink-2">

@@ -1,13 +1,16 @@
+import type { ReactNode } from 'react';
 import { Notice, Pill } from '@/components/ui/surface';
-import type { LabelCheckReport } from '@/domain';
+import type { LabelCheckReport, LabelRuleResult } from '@/domain';
 import { RuleStatusPill } from './RuleStatusPill';
 
 interface LabelReportViewProps {
   report: LabelCheckReport;
   productTitle?: string;
+  /** Tambahan di bawah tiap temuan, misalnya tombol tanya asisten. */
+  renderRuleExtra?: (item: LabelRuleResult) => ReactNode;
 }
 
-export function LabelReportView({ report, productTitle }: LabelReportViewProps) {
+export function LabelReportView({ report, productTitle, renderRuleExtra }: LabelReportViewProps) {
   return (
     <section className="space-y-6" aria-label="Hasil pemeriksaan aturan label">
       <div className="panel p-5 sm:p-6">
@@ -88,6 +91,7 @@ export function LabelReportView({ report, productTitle }: LabelReportViewProps) 
             <p className="mt-2.5 text-xs font-medium text-ink-3">
               Rujukan: {item.rujukan.peraturan}, {item.rujukan.pasal}
             </p>
+            {renderRuleExtra?.(item)}
           </article>
         ))}
       </div>
