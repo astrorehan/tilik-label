@@ -7,6 +7,7 @@ const FOOTER_LINKS = [
   { href: '/contoh', label: 'Contoh untuk juri' },
   { href: '/periksa', label: 'Periksa isi label' },
   { href: '/produk', label: 'Produk saya' },
+  { href: '/aturan', label: 'Aturan dan batasan' },
 ];
 
 export function Footer() {
