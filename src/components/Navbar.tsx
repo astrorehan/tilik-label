@@ -12,6 +12,8 @@ const NAV_LINKS = [
   { href: '/', label: 'Beranda' },
   { href: '/contoh', label: 'Contoh juri' },
   { href: '/periksa', label: 'Periksa label' },
+  { href: '/produk', label: 'Produk saya' },
+  { href: '/aturan', label: 'Aturan' },
 ];
 
 function subscribeToScroll(onChange: () => void) {
