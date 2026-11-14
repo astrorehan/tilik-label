@@ -9,6 +9,7 @@
  *   2. node scripts/bandingkan-pembaca.mjs [--url http://localhost:3000] [--ulang 1]
  *
  * Setiap gambar x penyedia x ulangan = satu panggilan model sungguhan (berbayar).
+ * Batas per pengunjung (F-12) ikut berlaku; naikkan LLM_BATAS_BACA_PER_JAM di .env.local bila perlu.
  * Pemilihan penyedia lewat header `x-tilik-penyedia` hanya berlaku di luar produksi.
  */
 import { readFile } from 'node:fs/promises';

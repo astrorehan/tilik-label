@@ -57,6 +57,17 @@ Aturan bisa berubah. Tanggal terakhir aturan dibaca dicatat di PRD.
 
 Next.js dengan TypeScript, Tailwind CSS, dan Vitest. Pembacaan foto memakai model bahasa yang bisa membaca gambar lewat API. Tidak ada basis data dan tidak ada akun pengguna. Rinciannya di PRD bagian 8.
 
+## Pengaman layanan
+
+Pembaca foto (dan asisten temuan) memanggil model berbayar, jadi ada dua lapis pengaman.
+
+1. **Batas per pengunjung di server** (`src/lib/server/rateLimit.ts`). Bawaannya 10 pembacaan foto per jam dan 30 per hari per alamat IP, ditambah batas harian untuk seluruh pengunjung (terpisah untuk pembaca foto dan asisten). Pengunjung dikenali dari header IP yang dipasang platform (`x-vercel-forwarded-for`, `x-real-ip`), lalu `x-forwarded-for`. Permintaan peramban dari situs lain ditolak. Angkanya bisa diubah lewat environment variable `LLM_BATAS_*` (lihat `.env.example`). Saat batas tercapai, pengguna mendapat pesan yang jelas beserta waktu tunggu, dan tetap bisa mengisi keterangan label sendiri.
+2. **Batas belanja di akun penyedia.** Ini pengaman terakhir dan wajib diatur sebelum situs dibuka ke publik:
+   - Anthropic (Claude Haiku): atur batas belanja bulanan workspace di Console Anthropic, lalu buat kunci API khusus untuk Tilik Label di workspace itu.
+   - DeepSeek: isi saldo secukupnya saja, karena pemakaian berhenti saat saldo habis. Periksa juga pengaturan peringatan pemakaian di dasbor DeepSeek.
+
+Batas di server memakai memori proses. Di Vercel, setiap instans serverless punya penghitung sendiri dan penghitung itu hilang saat instans dimulai ulang, jadi batas per pengunjung adalah rem pertama, bukan jaminan. Bila perlu batas yang ketat, penghitungnya bisa dipindah ke penyimpanan bersama seperti Redis.
+
 ## Yang tidak dikerjakan
 
 Login dan akun, pendaftaran izin secara daring, pembayaran, toko daring, uji laboratorium, dan jaminan lolos izin.

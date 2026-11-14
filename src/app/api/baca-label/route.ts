@@ -4,6 +4,7 @@ import {
   readLabelImage,
   type ReaderProviderId,
 } from '@/lib/server/labelReader';
+import { getQuotaGuard, isForeignBrowserRequest } from '@/lib/server/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -52,6 +53,11 @@ const TOO_LARGE = 'Gambar terlalu besar. Coba foto ulang atau isi sendiri.';
  * Gambar hanya diteruskan ke penyedia model untuk dibaca dan tidak disimpan di server.
  */
 export async function POST(request: Request) {
+  // Permintaan dari situs lain ditolak supaya kuota tidak dipakai pihak luar lewat peramban.
+  if (isForeignBrowserRequest(request)) {
+    return manual('Permintaan tidak sah.', 403);
+  }
+
   const declared = request.headers.get('content-length');
   if (declared !== null) {
     if (!/^\d+$/.test(declared.trim())) {
@@ -78,6 +84,19 @@ export async function POST(request: Request) {
   );
   if (!image) {
     return manual('Gambar tidak sah. Pakai foto berformat JPG, PNG, atau WebP.', 400);
+  }
+
+  // Batas pemanggilan model per pengunjung (F-12). Diperiksa setelah masukan sah,
+  // supaya permintaan rusak tidak menghabiskan jatah.
+  const quota = getQuotaGuard().check('baca', request.headers);
+  if (!quota.allowed) {
+    return NextResponse.json(
+      { ok: false, pesan: quota.pesan, arahan: 'isi_manual', batasTercapai: true },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(quota.retryAfterSec), 'Cache-Control': 'no-store' },
+      },
+    );
   }
 
   // Skrip pembanding boleh memilih satu penyedia, hanya di luar produksi.
