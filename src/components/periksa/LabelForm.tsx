@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Disclosure } from '@/components/ui/disclosure';
 import { TextArea, TextField } from '@/components/ui/fields';
 import { containsValidDate, type LabelData, type LabelFieldKey } from '@/domain';
+import { updateLabelField } from '@/domain/labelEvidence';
 
 type TextFieldKey = Exclude<LabelFieldKey, 'pernyataanLain'>;
 
@@ -70,10 +71,13 @@ export function LabelForm({
   value,
   onChange,
   showExtras,
+  reveal,
 }: {
   value: LabelData;
   onChange: (next: LabelData) => void;
   showExtras: boolean;
+  /** Kolom yang baru diisi dari hasil baca: muncul berurutan dan berpendar sebentar. */
+  reveal?: ReadonlySet<LabelFieldKey>;
 }) {
   const [extrasInitiallyOpen] = useState(() =>
     showExtras ||
@@ -82,13 +86,19 @@ export function LabelForm({
     value.unreadableFields?.includes('pernyataanLain'),
   );
 
-  const setField = (key: LabelFieldKey, text: string) => {
-    const unreadableFields = value.unreadableFields?.filter((field) => field !== key);
-    const update = key === 'pernyataanLain' ? { pernyataanLain: text.split('\n') } : { [key]: text };
-    onChange({ ...value, ...update, ...(unreadableFields ? { unreadableFields } : {}) });
-  };
+  const setField = (key: LabelFieldKey, text: string) => onChange(updateLabelField(value, key, text));
 
   const needsProductionDate = !containsValidDate(value.kodeProduksiTeks);
+  // Urutan kemunculan dihitung saat render; nilainya hanya dipakai untuk jeda animasi.
+  let revealOrder = 0;
+  const revealProps = (key: LabelFieldKey, unreadable?: boolean) => {
+    if (!reveal) return { className: undefined, style: undefined };
+    const order = revealOrder++;
+    return {
+      className: reveal.has(key) && !unreadable ? 'field-baru' : 'enter',
+      style: { '--i': order } as CSSProperties,
+    };
+  };
   const unreadableClaims = value.unreadableFields?.includes('pernyataanLain');
 
   const renderGroups = (groups: FieldConfig[][]) =>
@@ -106,26 +116,28 @@ export function LabelForm({
             : field.key === 'caraPenyimpananTeks'
               ? 'Wajib untuk cetak bila produk perlu cara simpan khusus. Jika tidak, jawab Tidak di Data produk.'
               : undefined;
+          const motion = revealProps(field.key, unreadable);
           return (
-            <Field
-              key={field.key}
-              id={`isian-${field.key}`}
-              label={
-                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  {field.label}
-                  {required && (
-                    <span className="rounded-full bg-brand-tint px-2 py-0.5 text-xs text-brand-deep">
-                      Wajib untuk cetak
-                    </span>
-                  )}
-                </span>
-              }
-              className={unreadable ? UNREADABLE_STYLE : undefined}
-              hint={unreadable ? <>{UNREADABLE_NOTE}{fieldHint && ` ${fieldHint}`}</> : fieldHint}
-              value={value[field.key]}
-              onChange={(event) => setField(field.key, event.target.value)}
-              placeholder={field.placeholder}
-            />
+            <div key={field.key} className={motion.className} style={motion.style}>
+              <Field
+                id={`isian-${field.key}`}
+                label={
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {field.label}
+                    {required && (
+                      <span className="rounded-full bg-brand-tint px-2 py-0.5 text-xs text-brand-deep">
+                        Wajib untuk cetak
+                      </span>
+                    )}
+                  </span>
+                }
+                className={unreadable ? UNREADABLE_STYLE : undefined}
+                hint={unreadable ? <>{UNREADABLE_NOTE}{fieldHint && ` ${fieldHint}`}</> : fieldHint}
+                value={value[field.key]}
+                onChange={(event) => setField(field.key, event.target.value)}
+                placeholder={field.placeholder}
+              />
+            </div>
           );
         })}
       </div>
@@ -134,7 +146,7 @@ export function LabelForm({
   return (
     <div className="space-y-4">
       <section aria-labelledby="isian-produk-judul" className="panel space-y-4 p-4 sm:p-6">
-        <h2 id="isian-produk-judul" className="type-h3">Produk dan komposisi</h2>
+        <h2 id="isian-produk-judul" tabIndex={-1} className="type-h3 focus:outline-none">Produk dan komposisi</h2>
         <p className="text-sm text-ink-2">
           Kamu bisa lanjut memeriksa dengan isian kosong. Lengkapi butir bertanda wajib sebelum mencetak stiker.
         </p>

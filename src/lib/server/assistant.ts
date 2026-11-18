@@ -72,8 +72,21 @@ function userMessage(context: unknown, question: string): string {
   ].join('\n');
 }
 
+interface AssistantTask {
+  system: string;
+  schema: Record<string, unknown>;
+}
+
+interface AssistantOptions {
+  env?: Record<string, string | undefined>;
+  fetchImpl?: FetchLike;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}
+
 async function callDeepseekChat(
   config: ReaderProviderConfig,
+  task: AssistantTask,
   content: string,
   options: { fetchImpl?: FetchLike; signal?: AbortSignal },
 ): Promise<string> {
@@ -86,7 +99,7 @@ async function callDeepseekChat(
       body: JSON.stringify({
         model: config.model,
         messages: [
-          { role: 'system', content: ASSISTANT_SYSTEM_PROMPT },
+          { role: 'system', content: task.system },
           { role: 'user', content },
         ],
         thinking: { type: 'disabled' },
@@ -115,6 +128,7 @@ async function callDeepseekChat(
 
 async function callHaikuChat(
   config: ReaderProviderConfig,
+  task: AssistantTask,
   content: string,
   options: { fetchImpl?: FetchLike; signal?: AbortSignal },
 ): Promise<string> {
@@ -131,12 +145,12 @@ async function callHaikuChat(
         model: config.model,
         max_tokens: 1200,
         system: [
-          { type: 'text', text: ASSISTANT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: task.system, cache_control: { type: 'ephemeral' } },
         ],
         thinking: { type: 'disabled' },
         output_config: {
           effort: 'low',
-          format: { type: 'json_schema', schema: ANSWER_SCHEMA as unknown as Record<string, unknown> },
+          format: { type: 'json_schema', schema: task.schema },
         },
         messages: [{ role: 'user', content }],
       },
@@ -177,32 +191,44 @@ export function checkAnswer(raw: unknown): { diLuarCakupan: boolean; jawaban: st
 
 const CALLERS = { deepseek: callDeepseekChat, haiku: callHaikuChat } as const;
 
-export async function askAssistant(
+export async function runAssistantTask<T>(
+  task: AssistantTask,
   context: unknown,
   question: string,
-  options: { env?: Record<string, string | undefined>; fetchImpl?: FetchLike; timeoutMs?: number } = {},
-): Promise<AssistantOutcome> {
+  validate: (raw: unknown) => T | null,
+  options: AssistantOptions = {},
+): Promise<{ result: T; penyedia: ReaderProviderId } | null> {
   const env = options.env ?? process.env;
   const content = userMessage(context, question);
   for (const id of providerOrder(env)) {
+    if (options.signal?.aborted) break;
     const config = readProviderConfig(id, env);
     if (!config) continue;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 12_000);
+    const timeout = AbortSignal.timeout(options.timeoutMs ?? 12_000);
+    const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
     try {
-      const text = await CALLERS[id](config, content, {
+      const text = await CALLERS[id](config, task, content, {
         fetchImpl: options.fetchImpl,
-        signal: controller.signal,
+        signal,
       });
-      const checked = checkAnswer(parseModelJson(text));
-      if (checked) {
-        return { ok: true, ...checked, penyedia: id };
-      }
+      const result = validate(parseModelJson(text));
+      if (result !== null) return { result, penyedia: id };
     } catch {
       // Coba penyedia berikutnya.
-    } finally {
-      clearTimeout(timer);
     }
   }
-  return { ok: false, pesan: ASSISTANT_UNAVAILABLE };
+  return null;
+}
+
+export async function askAssistant(
+  context: unknown,
+  question: string,
+  options: AssistantOptions = {},
+): Promise<AssistantOutcome> {
+  const response = await runAssistantTask(
+    { system: ASSISTANT_SYSTEM_PROMPT, schema: ANSWER_SCHEMA }, context, question, checkAnswer, options,
+  );
+  return response
+    ? { ok: true, ...response.result, penyedia: response.penyedia }
+    : { ok: false, pesan: ASSISTANT_UNAVAILABLE };
 }

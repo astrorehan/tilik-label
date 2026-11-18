@@ -1,4 +1,5 @@
 import { createEmptyLabelData } from './labelRules';
+import { validateIngredientFormatting } from './allergens';
 import type { LabelData, LabelFieldKey } from './types';
 
 /**
@@ -44,14 +45,14 @@ export const EXTRACTION_FIELD_DESCRIPTIONS: Record<LabelFieldKey, string> = {
   pernyataanAlergenTeks: 'Kalimat peringatan alergen.',
   caraPenyimpananTeks: 'Petunjuk cara penyimpanan.',
   pernyataanLain:
-    'Klaim atau tulisan lain di kemasan selain butir di atas (misalnya "Tanpa pengawet", "Renyah"), satu tulisan per isi daftar.',
+    'Klaim atau tulisan lain di kemasan selain butir di atas (misalnya "Tanpa pengawet", "Umur simpan: 6 bulan"), satu tulisan per isi daftar.',
 };
 
 /** JSON Schema keluaran model (dipakai untuk structured output dan dokumentasi). */
 export const EXTRACTION_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['butir', 'pernyataanLain', 'bukanLabelPangan'],
+  required: ['butir', 'pernyataanLain', 'daftarBahanBerformat', 'bukanLabelPangan'],
   properties: {
     butir: {
       type: 'object',
@@ -82,6 +83,10 @@ export const EXTRACTION_JSON_SCHEMA = {
         status: { type: 'string', enum: ['terbaca', 'tidak_ada', 'tidak_terbaca'] },
         daftar: { type: 'array', items: { type: 'string' } },
       },
+    },
+    daftarBahanBerformat: {
+      type: 'string',
+      description: 'Salinan persis seluruh daftar bahan dengan **penanda tebal**, atau string kosong bila format huruf belum jelas.',
     },
     bukanLabelPangan: {
       type: 'boolean',
@@ -141,7 +146,7 @@ export function validateExtraction(raw: unknown): ExtractionResult {
     return { ok: false, alasan: 'skema_tidak_sesuai' };
   }
   if (
-    !hasOnlyKeys(raw, ['butir', 'pernyataanLain', 'bukanLabelPangan']) ||
+    !hasOnlyKeys(raw, ['butir', 'pernyataanLain', 'daftarBahanBerformat', 'bukanLabelPangan']) ||
     !hasOnlyKeys(raw.butir, EXTRACTION_TEXT_FIELDS)
   ) {
     return { ok: false, alasan: 'skema_tidak_sesuai' };
@@ -197,11 +202,15 @@ export function validateExtraction(raw: unknown): ExtractionResult {
   if (claims.status !== 'tidak_ada') {
     label.pernyataanLain = daftar;
   }
-  if (claims.status === 'tidak_terbaca') {
+  if (claims.status === 'tidak_terbaca' || (claims.status === 'terbaca' && daftar.length === 0)) {
     tidakTerbaca.push('pernyataanLain');
   }
 
   label.unreadableFields = tidakTerbaca;
+  if (!tidakTerbaca.includes('daftarBahanTeks')) {
+    const formatting = validateIngredientFormatting(raw.daftarBahanBerformat, label.daftarBahanTeks);
+    if (formatting) label.daftarBahanBerformat = formatting;
+  }
   return { ok: true, label, tidakTerbaca };
 }
 

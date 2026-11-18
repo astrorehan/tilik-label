@@ -5,7 +5,6 @@ import { Icon } from '@/components/icons/icon';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Card, Notice, Pill } from '@/components/ui/surface';
 import {
-  MAX_SAVED_PRODUCTS,
   STORAGE_UNAVAILABLE_SNAPSHOT,
   deleteProduct,
   getProductsSnapshot,
@@ -45,8 +44,8 @@ export function ProductListClient() {
     const target = pendingFocus.current;
     pendingFocus.current = null;
     if (!target) return;
-    if (target.kind === 'judul') headingRef.current?.focus();
-    else document.getElementById(hapusButtonId(target.id))?.focus();
+    if (target.kind === 'judul') headingRef.current?.focus({ preventScroll: true });
+    else document.getElementById(hapusButtonId(target.id))?.focus({ preventScroll: true });
   }, [focusTick]);
 
   const loading = snapshot === LOADING_SNAPSHOT;
@@ -116,7 +115,7 @@ export function ProductListClient() {
       {products.length > 0 && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-ink-2">{products.length} dari {MAX_SAVED_PRODUCTS} produk</p>
+            <p className="text-sm text-ink-2">{products.length} produk tersimpan</p>
             <ButtonLink href="/periksa" size="md" icon="plus">Periksa label baru</ButtonLink>
           </div>
           <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">

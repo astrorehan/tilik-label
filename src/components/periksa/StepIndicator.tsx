@@ -1,10 +1,11 @@
+import { Icon } from '@/components/icons/icon';
 import { cn } from '@/lib/cn';
 
 export type FlowStep = 'mulai' | 'isi' | 'tanya' | 'hasil';
 
 const STEP_LABELS: Record<FlowStep, string> = {
-  mulai: 'Tambah label',
-  isi: 'Isi label',
+  mulai: 'Foto label',
+  isi: 'Cocokkan isi',
   tanya: 'Data produk',
   hasil: 'Hasil',
 };
@@ -25,25 +26,46 @@ export function StepIndicator({
 
   return (
     <nav aria-label={`Pemeriksaan, langkah ${currentIndex + 1} dari ${FLOW_STEPS.length}`}>
-      <ol className="grid grid-cols-4 gap-2 sm:gap-3">
+      <ol className="glass flex items-center gap-1 rounded-full p-1.5">
         {FLOW_STEPS.map((step, index) => {
           const active = step === current;
           const available = !active && index <= farthestIndex;
+          const done = index < currentIndex || (available && index < farthestIndex);
           const className = cn(
-            'flex min-h-11 w-full flex-col gap-2 rounded-lg text-left text-xs leading-tight before:h-[3px] before:w-full before:rounded-full sm:text-sm',
-            active && 'font-bold text-ink before:bg-brand',
-            available && 'font-semibold text-brand-deep before:bg-brand-soft hover:underline hover:before:bg-brand',
-            !active && !available && 'text-ink-3 before:bg-line',
+            'flex min-h-10 w-full items-center justify-center gap-2 rounded-full px-2.5 text-sm leading-tight transition-[background-color,color] duration-200 sm:justify-start sm:px-3',
+            active && 'bg-ink font-semibold text-surface shadow-raised',
+            available && 'font-semibold text-brand-deep hover:bg-brand-tint',
+            !active && !available && 'text-ink-3',
+          );
+          const badge = (
+            <span
+              aria-hidden
+              className={cn(
+                'grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold',
+                active ? 'bg-action text-ink' : done ? 'bg-brand text-surface' : 'border border-line-strong/50',
+              )}
+            >
+              {done && !active ? <Icon name="check" size={14} strokeWidth={2.4} /> : index + 1}
+            </span>
+          );
+          const text = (
+            <span className={cn('truncate', active ? 'inline' : 'sr-only sm:not-sr-only sm:inline')}>
+              {STEP_LABELS[step]}
+            </span>
           );
 
           return (
-            <li key={step} aria-current={active ? 'step' : undefined}>
+            <li key={step} aria-current={active ? 'step' : undefined} className={cn(active ? 'flex-[2.2] sm:flex-1' : 'flex-1')}>
               {available ? (
                 <button type="button" className={className} onClick={() => onSelect(step)}>
-                  {STEP_LABELS[step]}
+                  {badge}
+                  {text}
                 </button>
               ) : (
-                <span className={className}>{STEP_LABELS[step]}</span>
+                <span className={className}>
+                  {badge}
+                  {text}
+                </span>
               )}
             </li>
           );

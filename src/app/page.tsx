@@ -1,15 +1,11 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Footer } from '@/components/Footer';
-import { Icon, type IconName } from '@/components/icons/icon';
+import { ExampleResult } from '@/components/beranda/ExampleResult';
+import { StepCards } from '@/components/beranda/StepCards';
+import { Icon } from '@/components/icons/icon';
 import { Navbar } from '@/components/Navbar';
 import { ButtonLink } from '@/components/ui/button';
-
-const STEPS: { icon: IconName; title: string; description: string }[] = [
-  { icon: 'camera', title: 'Tambahkan label', description: 'Pakai foto, desain, atau teks label.' },
-  { icon: 'edit', title: 'Cocokkan isinya', description: 'Periksa teks dan lengkapi data produk.' },
-  { icon: 'ledger', title: 'Tinjau hasil', description: 'Lihat yang bisa kamu perbaiki sebelum cetak.' },
-];
 
 export default function HomePage() {
   return (
@@ -34,6 +30,7 @@ export default function HomePage() {
               <Link href="/contoh" className="action-link">
                 Coba contoh <Icon name="arrowRight" size={17} />
               </Link>
+              <Link href="/juri" className="action-link">Demo juri <Icon name="arrowRight" size={17} /></Link>
             </div>
           </div>
 
@@ -58,22 +55,10 @@ export default function HomePage() {
           </figure>
         </section>
 
-        <section aria-labelledby="cara-periksa" className="page-shell pb-12 sm:pb-16">
-          <h2 id="cara-periksa" className="sr-only">Cara periksa label</h2>
-          <ol className="grid divide-y divide-line border-y border-line md:grid-cols-3 md:divide-x md:divide-y-0">
-            {STEPS.map((step) => (
-              <li key={step.title} className="flex items-start gap-3.5 px-1 py-4 sm:py-5 md:px-5 lg:px-7">
-                <span className="icon-tile mt-0.5 shrink-0"><Icon name={step.icon} size={21} /></span>
-                <div>
-                  <h3 className="font-semibold text-ink">{step.title}</h3>
-                  <p className="mt-0.5 text-sm text-ink-2">{step.description}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
+        <StepCards />
+        <ExampleResult />
       </main>
-      <Footer />
+      <Footer illustrated />
     </div>
   );
 }

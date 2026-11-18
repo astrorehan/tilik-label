@@ -4,17 +4,12 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { Icon } from '@/components/icons/icon';
 import { PermitPathView } from '@/components/periksa/PermitPathView';
+import { SAMPLE_PHOTOS, samplePhotoUrl } from '@/components/periksa/SamplePhotos';
 import { Disclosure } from '@/components/ui/disclosure';
 import { evaluateLabelRules, evaluatePermitPath } from '@/domain';
 import type { SampleLabelCase } from '@/domain/sampleLabels';
 import { cn } from '@/lib/cn';
 import { LabelReportView } from './LabelReportView';
-
-const PACKAGES: Record<string, { file: string; name: string }> = {
-  'kue-kering-tampak-lengkap': { file: 'kue-kering-kacang.jpg', name: 'Kue kacang' },
-  'sambal-bawang-rumahan': { file: 'sambal-bawang.jpg', name: 'Sambal bawang' },
-  'kerupuk-ikan-klaim-gizi': { file: 'kerupuk-ikan.jpg', name: 'Kerupuk ikan' },
-};
 
 function SampleData({ sample }: { sample: SampleLabelCase }) {
   const { label, answers } = sample;
@@ -86,7 +81,7 @@ export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
   const sample = cases.find((item) => item.id === selectedId) ?? cases[0];
   if (!sample) return null;
 
-  const photo = PACKAGES[sample.id];
+  const photo = SAMPLE_PHOTOS.find((item) => item.caseId === sample.id);
   const report = evaluateLabelRules(sample.label, sample.answers);
   const permit = evaluatePermitPath(sample.label, sample.answers);
 
@@ -95,7 +90,7 @@ export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
       <div role="group" aria-label="Pilih contoh kemasan" className="grid grid-cols-3 gap-2 sm:gap-3">
         {cases.map((item) => {
           const active = item.id === sample.id;
-          const choice = PACKAGES[item.id];
+          const choice = SAMPLE_PHOTOS.find((photo) => photo.caseId === item.id);
           return (
             <button
               key={item.id}
@@ -109,7 +104,7 @@ export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
             >
               {choice && (
                 <Image
-                  src={`/contoh-foto/${choice.file}`}
+                  src={samplePhotoUrl(choice)}
                   alt=""
                   width={1080}
                   height={1440}
@@ -117,7 +112,7 @@ export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
                   className="size-11 rounded-xl object-cover sm:size-12"
                 />
               )}
-              <span className="flex-1">{choice?.name ?? item.label.namaProduk}</span>
+              <span className="flex-1">{choice?.nama ?? item.label.namaProduk}</span>
               {active && <Icon name="check" size={18} className="hidden shrink-0 text-brand sm:block" />}
             </button>
           );
@@ -129,7 +124,7 @@ export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
           {photo && (
             <figure className="panel p-3.5 sm:p-4">
               <Image
-                src={`/contoh-foto/${photo.file}`}
+                src={samplePhotoUrl(photo)}
                 alt={`Ilustrasi label ${sample.label.namaProduk}`}
                 width={1080}
                 height={1440}

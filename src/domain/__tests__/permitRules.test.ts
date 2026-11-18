@@ -88,6 +88,15 @@ describe('I-01 umur simpan kurang dari 7 hari (Pasal 3)', () => {
     expect(evaluatePermitPath(makeLabel(), answers).hasil).toBe('tidak_wajib_spp_irt');
   });
 
+  it('memakai durasi pada label jika jawaban umur simpan kosong dan tulisannya jelas', () => {
+    const label = makeLabel({ pernyataanLain: ['Umur simpan: 6 hari'] });
+    const answers = makeAnswers({ umurSimpanHari: null });
+    expect(ruleOf('I-01', label, answers)).toMatchObject({ dampak: 'membebaskan', penjelasan: expect.stringContaining('menurut label') });
+    expect(ruleOf('I-01', { ...label, unreadableFields: ['pernyataanLain'] }, answers).dampak).toBe('belum_dijawab');
+    expect(ruleOf('I-01', { ...label, pernyataanLain: ['Umur simpan: 6 hari', 'Masa simpan: 2 minggu'] }, answers).dampak).toBe('belum_dijawab');
+    expect(ruleOf('I-01', label, { ...answers, umurSimpanHari: 10 }).dampak).toBe('tidak_berlaku');
+  });
+
   it('umur simpan kosong, nol, negatif, atau bukan angka dianggap belum dijawab', () => {
     for (const umur of [null, 0, -3, Number.NaN]) {
       const answers = makeAnswers({ umurSimpanHari: umur });
@@ -192,8 +201,8 @@ describe('I-05 klaim pada label (Pasal 10)', () => {
     expect(ruleOf('I-05', label, makeAnswers()).rujukan.pasal).toBe('Pasal 10');
   });
 
-  it('klaim kesehatan pada nama produk ikut terdeteksi', () => {
-    const label = makeLabel({ namaProduk: 'Jamu Kunyit Menyehatkan' });
+  it.each(['Menyehatkan', 'Meny ehatkan'])('klaim kesehatan "%s" pada nama produk ikut terdeteksi', (klaim) => {
+    const label = makeLabel({ namaProduk: `Jamu Kunyit ${klaim}` });
     expect(evaluatePermitPath(label, makeAnswers()).hasil).toBe('tidak_bisa_spp_irt');
   });
 
@@ -258,10 +267,10 @@ describe('I-07 pangan wajib SNI (Pasal 10)', () => {
 });
 
 describe('I-08 jenis pangan Lampiran I (Pasal 5 dan 9)', () => {
-  it('selalu perlu dicek ke Dinas Kesehatan karena Lampiran I belum terbaca', () => {
+  it('meminta verifikasi jenis pangan dan cara pengolahannya terhadap Lampiran I', () => {
     const rule = ruleOf('I-08', makeLabel(), makeAnswers());
     expect(rule.dampak).toBe('perlu_dicek');
-    expect(rule.penjelasan).toMatch(/perlu dicek ke Dinas Kesehatan/);
+    expect(rule.penjelasan).toMatch(/jenis pangan dan cara pengolahannya.*Lampiran I.*Dinas Kesehatan/);
   });
 
   it('hasil "bisa lewat SPP-IRT" selalu menyertakan catatan jenis pangan', () => {

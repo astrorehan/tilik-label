@@ -21,7 +21,7 @@ export default async function PeriksaPage({
 
       <main
         id="main-content"
-        className="page-shell max-w-[58rem] flex-1 py-6 sm:py-10"
+        className="page-shell flex-1 py-6 sm:py-10"
       >
         <PeriksaEntryClient produkId={produkId} initialStep={step === 'isi' ? 'isi' : 'hasil'} />
       </main>

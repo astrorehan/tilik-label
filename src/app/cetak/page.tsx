@@ -23,7 +23,7 @@ export default async function CetakPage({
 
       <main
         id="main-content"
-        className="page-shell max-w-[60rem] flex-1 space-y-8 py-8 sm:py-12"
+        className="page-shell max-w-[60rem] flex-1 space-y-8 py-5 sm:py-8"
       >
         <CetakClient produkId={produkId} />
       </main>

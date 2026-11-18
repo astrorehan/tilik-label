@@ -1,4 +1,5 @@
-import { ALLERGEN_GROUPS, detectAllergens } from './allergens';
+import { detectAllergens, splitAllergenParts, type IngredientPart } from './allergens';
+import { declaredIngredientOrder, splitIngredients } from './labelEvidence';
 import { createEmptyLabelData, evaluateLabelRules } from './labelRules';
 import { LABEL_RULE_METADATA } from './regulations';
 import type {
@@ -80,10 +81,7 @@ export interface CorrectedLabelRow {
   rujukan: RegulationReference;
 }
 
-export interface IngredientPart {
-  teks: string;
-  alergen: boolean;
-}
+export { splitAllergenParts, type IngredientPart } from './allergens';
 
 export interface CorrectedLabel {
   baris: CorrectedLabelRow[];
@@ -94,6 +92,11 @@ export interface CorrectedLabel {
   /** Daftar bahan (termasuk awalan) dipotong menurut alergen untuk dicetak tebal. */
   bahanBagian: IngredientPart[];
   alergenTerdeteksi: string[];
+  /**
+   * Isian label setelah perbaikan otomatis. Dipakai untuk memeriksa ulang dan
+   * membedakan temuan yang sudah dibetulkan dari yang masih perlu keputusan pengguna.
+   */
+  data: LabelData;
 }
 
 const INGREDIENT_PREFIX_REGEX =
@@ -114,24 +117,6 @@ function normalize(value: string): string {
 }
 
 /** Memecah daftar bahan pada koma/titik koma di luar tanda kurung. */
-function splitIngredients(body: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let current = '';
-  for (const ch of body) {
-    if (ch === '(' || ch === '[') depth++;
-    else if ((ch === ')' || ch === ']') && depth > 0) depth--;
-    if ((ch === ',' || ch === ';' || ch === '\n') && depth === 0) {
-      parts.push(current);
-      current = '';
-    } else {
-      current += ch;
-    }
-  }
-  parts.push(current);
-  return parts.map((part) => part.trim().replace(/\.$/, '').trim()).filter(Boolean);
-}
-
 function tokenKey(token: string): string {
   return normalize(token.replace(/\([^)]*\)/g, ''));
 }
@@ -216,35 +201,6 @@ function sortByRecipe(tokens: string[], answers: AdditionalAnswers): SortedIngre
   };
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-const ALLERGEN_KEYWORDS: string[] = ALLERGEN_GROUPS.flatMap((group) => group.kataKunci).sort(
-  (a, b) => b.length - a.length,
-);
-
-/** Memotong teks menjadi bagian biasa dan bagian alergen (batas kata seperti detectAllergens). */
-export function splitAllergenParts(text: string): IngredientPart[] {
-  if (text.length === 0) return [];
-  const regex = new RegExp(
-    `(^|[^a-z0-9])(${ALLERGEN_KEYWORDS.map(escapeRegex).join('|')})(?=[^a-z0-9]|$)`,
-    'gi',
-  );
-  const parts: IngredientPart[] = [];
-  let cursor = 0;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(text)) !== null) {
-    const start = match.index + (match[1] ?? '').length;
-    const end = start + (match[2] ?? '').length;
-    if (start > cursor) parts.push({ teks: text.slice(cursor, start), alergen: false });
-    parts.push({ teks: text.slice(start, end), alergen: true });
-    cursor = end;
-  }
-  if (cursor < text.length) parts.push({ teks: text.slice(cursor), alergen: false });
-  return parts;
-}
-
 /** True bila semua butir wajib terisi. */
 export function canDownloadLabel(
   baris: readonly Pick<CorrectedLabelRow, 'wajib' | 'kosong'>[],
@@ -305,15 +261,13 @@ export function buildCorrectedLabel(label: LabelData, answers: AdditionalAnswers
     if (!prefixMatch) {
       catatan.push(`Awalan "${INGREDIENT_PREFIX_DEFAULT}" ditambahkan pada daftar bahan.`);
     }
-    if (!sorted.resepCukup) {
+    if (!sorted.resepCukup && !declaredIngredientOrder(body)) {
       catatan.push(
         'Urutan bahan belum bisa dipastikan dari yang terbanyak karena resep minimal dua bahan belum diisi. Urutan mengikuti teks asli.',
       );
-    } else if (
-      sorted.matched < 2 ||
-      sorted.labelTanpaPadanan.length > 0 ||
-      sorted.recipeTanpaPadanan.length > 0
-    ) {
+    } else if (sorted.resepCukup && (
+      sorted.matched < 2 || sorted.labelTanpaPadanan.length > 0 || sorted.recipeTanpaPadanan.length > 0
+    )) {
       catatan.push(
         'Nama bahan di resep belum cukup cocok dengan daftar bahan, jadi urutan dibiarkan seperti teks asli. Cek sendiri bahwa urutannya dari yang terbanyak.',
       );
@@ -467,6 +421,7 @@ export function buildCorrectedLabel(label: LabelData, answers: AdditionalAnswers
     keteranganHalalTeks: halalText,
     pernyataanLain: kept,
     unreadableFields: [],
+    daftarBahanBerformat: bahanBagian.map((bagian) => bagian.alergen ? `**${bagian.teks}**` : bagian.teks).join(''),
   };
   for (const r of evaluateLabelRules(corrected, answers).hasil) {
     if (r.status !== 'kurang') continue;
@@ -482,5 +437,6 @@ export function buildCorrectedLabel(label: LabelData, answers: AdditionalAnswers
     catatan,
     bahanBagian,
     alergenTerdeteksi,
+    data: corrected,
   };
 }

@@ -8,3 +8,4 @@ export * from './questions';
 export * from './correctedLabel';
 export * from './labelPrintScale';
 export * from './assistant';
+export * from './reportGroups';

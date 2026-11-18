@@ -1,9 +1,14 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
+  type CSSProperties, type ReactNode, type RefObject,
+} from 'react';
+import { Icon } from '@/components/icons/icon';
 import { Button, ButtonLink } from '@/components/ui/button';
+import { Segmented } from '@/components/ui/choices';
 import { TextField } from '@/components/ui/fields';
-import { Notice, Pill } from '@/components/ui/surface';
+import { Notice } from '@/components/ui/surface';
 import {
   BODY_FONT_SIZE_MM,
   DEFAULT_STICKER_DIMENSIONS_MM,
@@ -20,6 +25,7 @@ import {
   evaluatePermitPath,
   measureLowercaseOHeightMm,
   prepareForCheck,
+  type CorrectedLabel,
   type CorrectedLabelRow,
   type LabelRuleResult,
   type StickerDimensionsMm,
@@ -37,7 +43,18 @@ function formatDate(iso: string): string {
 type Bagian = 'label' | 'ringkasan';
 
 const PAGE_STYLE_ID = 'ukuran-halaman-stiker';
-const PREVIEW_ZOOM = [100, 150, 200];
+type PreviewZoom = 'muat' | '100' | '150' | '200';
+const PREVIEW_ZOOM: { value: PreviewZoom; title: string }[] = [
+  { value: 'muat', title: 'Muat' },
+  { value: '100', title: '100%' },
+  { value: '150', title: '150%' },
+  { value: '200', title: '200%' },
+];
+const CUSTOM_SIZE_ID = 'khusus';
+const STICKER_SIZE_OPTIONS = [
+  ...STICKER_PRESETS_MM,
+  { id: CUSTOM_SIZE_ID, label: 'Kustom', kegunaan: 'Atur lebar dan tinggi', dimensi: null },
+];
 
 function resetCetak() {
   delete document.documentElement.dataset.cetak;
@@ -66,11 +83,15 @@ function parseDimension(raw: string, min: number, max: number) {
   return Number.isInteger(value) && value >= min && value <= max ? value : null;
 }
 
+function sameDimensions(a: StickerDimensionsMm, b: StickerDimensionsMm) {
+  return a.lebarMm === b.lebarMm && a.tinggiMm === b.tinggiMm;
+}
+
 function pasalText(item: { rujukan: { peraturan: string; pasal: string } }): string {
   return `${item.rujukan.peraturan}, ${item.rujukan.pasal}`;
 }
 
-export function CetakIsi({ product }: { product: SavedProduct }) {
+export function CetakIsi({ product, onEdit }: { product: SavedProduct; onEdit?: () => void }) {
   const prepared = useMemo(
     () => prepareForCheck(product.label, product.answers),
     [product.label, product.answers],
@@ -106,29 +127,29 @@ export function CetakIsi({ product }: { product: SavedProduct }) {
   const tidakBisaDicek = report.hasil.filter((item) => item.status === 'tidak_bisa_dicek');
   const namaCetak = product.nama;
   const hrefIsian = `/periksa?produk=${encodeURIComponent(product.id)}&step=isi`;
+  const editButton = (children: string, className?: string) => onEdit ? (
+    <Button size="md" variant="secondary" icon="edit" className={className} onClick={onEdit}>{children}</Button>
+  ) : (
+    <ButtonLink href={hrefIsian} size="md" variant="secondary" icon="edit" className={className}>{children}</ButtonLink>
+  );
 
   return (
-    <div className="space-y-10 print:space-y-0">
-      <header className="cetak-tidak-dicetak flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
-        <div className="max-w-2xl">
-          <p className="type-eyebrow">Label skala fisik &amp; ringkasan</p>
-          <h1 className="type-h1 mt-1.5 break-words text-ink">{namaCetak}</h1>
-          <p className="mt-1.5 text-sm leading-relaxed text-ink-2 sm:text-base">
-            Stiker ditata pada skala milimeter nyata dengan ukuran huruf minimum Pasal 9 yang
-            dijamin aplikasi. Pilih &ldquo;Simpan sebagai PDF&rdquo; dengan skala 100% di dialog cetak.
-          </p>
-        </div>
-        <ButtonLink
-          href={hrefIsian}
-          size="md"
-          variant="secondary"
-          icon="edit"
+    <div className="space-y-4 sm:space-y-8 print:space-y-0">
+      <header className="cetak-tidak-dicetak grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-line pb-4">
+        <p className="type-eyebrow col-start-1 row-start-1">Cetak label</p>
+        <h1
+          id="cetak-judul"
+          tabIndex={-1}
+          className="type-h1 col-span-2 col-start-1 row-start-2 wrap-anywhere text-ink focus:outline-none md:col-span-1"
         >
-          Ubah isi produk
-        </ButtonLink>
+          {namaCetak}
+        </h1>
+        <div className="col-start-2 row-start-1 md:row-span-2 md:self-end">
+          {editButton('Ubah isi produk')}
+        </div>
       </header>
 
-      <LabelBagian corrected={corrected} namaProduk={namaCetak} hrefIsian={hrefIsian} />
+      <LabelBagian corrected={corrected} namaProduk={namaCetak} editButton={editButton} />
 
       <section
         data-cetak-bagian="ringkasan"
@@ -244,11 +265,11 @@ function FindingList({
 function LabelBagian({
   corrected,
   namaProduk,
-  hrefIsian,
+  editButton,
 }: {
-  corrected: ReturnType<typeof buildCorrectedLabel>;
+  corrected: CorrectedLabel;
   namaProduk: string;
-  hrefIsian: string;
+  editButton: (text: string, className?: string) => ReactNode;
 }) {
   const { baris, siapUnduh, butirKosong, catatan, bahanBagian } = corrected;
   const tampil = baris.filter((row) => row.wajib || !row.kosong);
@@ -256,7 +277,8 @@ function LabelBagian({
   const [dimensi, setDimensi] = useState<StickerDimensionsMm>(DEFAULT_STICKER_DIMENSIONS_MM);
   const [lebarInput, setLebarInput] = useState(String(DEFAULT_STICKER_DIMENSIONS_MM.lebarMm));
   const [tinggiInput, setTinggiInput] = useState(String(DEFAULT_STICKER_DIMENSIONS_MM.tinggiMm));
-  const [zoom, setZoom] = useState(100);
+  const [ukuranKhusus, setUkuranKhusus] = useState(false);
+  const namaPilihanUkuran = useId();
   const stickerRef = useRef<HTMLDivElement>(null);
 
   const lebarValid = parseDimension(lebarInput, MIN_STICKER_WIDTH_MM, MAX_STICKER_WIDTH_MM);
@@ -265,53 +287,130 @@ function LabelBagian({
   const bisaCetak = siapUnduh && ukuranValid;
 
   const fit = useMemo(() => evaluateLabelPrintFit(baris, dimensi), [baris, dimensi]);
-  const bodyOMm = measureLowercaseOHeightMm(BODY_FONT_SIZE_MM);
-  const headingOMm = measureLowercaseOHeightMm(HEADING_WARNING_FONT_SIZE_MM);
   const minimum = fit.ukuranMinimumDisarankan;
   const standar = fit.ukuranProporsionalDisarankan;
+  const presetAktif = ukuranKhusus ? CUSTOM_SIZE_ID : STICKER_PRESETS_MM.find(
+    (preset) => sameDimensions(preset.dimensi, dimensi),
+  )?.id;
 
   const applyDimensions = (next: StickerDimensionsMm) => {
     setDimensi(next);
     setLebarInput(String(next.lebarMm));
     setTinggiInput(String(next.tinggiMm));
+    setUkuranKhusus(!STICKER_PRESETS_MM.some((preset) => sameDimensions(preset.dimensi, next)));
+  };
+
+  const updateCustomDimensions = (lebar: string, tinggi: string) => {
+    setLebarInput(lebar);
+    setTinggiInput(tinggi);
+    const lebarMm = parseDimension(lebar, MIN_STICKER_WIDTH_MM, MAX_STICKER_WIDTH_MM);
+    const tinggiMm = parseDimension(tinggi, MIN_STICKER_HEIGHT_MM, MAX_STICKER_HEIGHT_MM);
+    if (lebarMm !== null && tinggiMm !== null) setDimensi({ lebarMm, tinggiMm });
   };
 
   const cetakLabel = () => {
-    const tinggiPx = stickerRef.current?.getBoundingClientRect().height ?? 0;
+    const tinggiPx = stickerRef.current?.offsetHeight ?? 0;
     // Sisakan 12 mm untuk margin halaman dan 14 mm untuk garis uji.
-    const tinggiLabelMm = Math.ceil((tinggiPx / (zoom / 100)) * (25.4 / 96));
+    const tinggiLabelMm = Math.ceil(tinggiPx * (25.4 / 96));
     cetak('label', {
       lebarMm: dimensi.lebarMm + 16,
       tinggiMm: Math.max(dimensi.tinggiMm, fit.tinggiDibutuhkanMm, tinggiLabelMm) + 26,
     });
   };
 
-  const stickerStyle = {
-    '--stiker-lebar': `${dimensi.lebarMm}mm`,
-    '--stiker-tinggi': `${dimensi.tinggiMm}mm`,
-    '--stiker-zoom': zoom / 100,
-  } as CSSProperties;
-
   return (
     <section
       data-cetak-bagian="label"
       data-siap={bisaCetak ? 'true' : 'false'}
       aria-labelledby="label-judul"
-      className="space-y-5 print:space-y-0"
+      className="space-y-4 print:space-y-0"
     >
-      <div className="cetak-tidak-dicetak space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="max-w-2xl">
-            <h2 id="label-judul" className="type-h2 text-ink">
-              Label perbaikan berskala fisik
-            </h2>
-            <p className="mt-1 text-sm leading-snug text-ink-2">
-              Teks ditata langsung dalam satuan milimeter (mm). Huruf kecil &ldquo;o&rdquo; pada
-              font aplikasi dijamin <strong>{bodyOMm.toLocaleString('id-ID')} mm</strong> untuk teks
-              umum (min. 1 mm, Pasal 9 ayat 2) dan{' '}
-              <strong>{headingOMm.toLocaleString('id-ID')} mm</strong> untuk nama pangan serta
-              peringatan alergen (min. 2 mm, Pasal 9 ayat 3 &amp; 4).
-            </p>
+      <h2 id="label-judul" className="cetak-tidak-dicetak sr-only">Label perbaikan</h2>
+
+      <div className="grid items-start gap-3 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:grid-rows-[auto_1fr] md:gap-4 print:block">
+        <div className="cetak-tidak-dicetak cetak-pilihan-ukuran panel min-w-0 p-3 sm:p-4 md:col-start-1">
+          <fieldset className="min-w-0">
+            <legend className="mb-2.5 type-h3 text-ink sm:mb-3">
+              Ukuran stiker <span className="text-sm font-normal text-ink-2">(mm)</span>
+            </legend>
+            <div className="grid grid-cols-3 gap-1.5 md:grid-cols-2 md:gap-2">
+              {STICKER_SIZE_OPTIONS.map(({ id, label, kegunaan, dimensi: pilihan }) => {
+                const aktif = id === presetAktif;
+                return (
+                  <label
+                    key={id}
+                    className={cn(
+                      'flex min-h-11 min-w-0 cursor-pointer flex-col justify-center rounded-[12px] border px-1.5 py-1.5 text-center leading-snug transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand md:min-h-[4.5rem] md:px-2.5 md:py-2 md:text-left',
+                      aktif ? 'border-brand bg-brand-tint text-brand-deep' : 'border-line bg-surface text-ink hover:border-line-strong hover:bg-paper',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name={namaPilihanUkuran}
+                      value={id}
+                      checked={aktif}
+                      onChange={() => {
+                        if (pilihan) applyDimensions(pilihan);
+                        else setUkuranKhusus(true);
+                      }}
+                      className="sr-only"
+                    />
+                    <span className="flex items-center justify-center gap-1 text-sm font-bold whitespace-nowrap tabular md:justify-between">
+                      {pilihan ? `${pilihan.lebarMm} × ${pilihan.tinggiMm}` : label}
+                      {aktif && <Icon name="check" className="hidden shrink-0 md:block" size={16} strokeWidth={2.5} />}
+                    </span>
+                    <span className="hidden text-xs text-ink-2 md:mt-0.5 md:block">{kegunaan}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          {ukuranKhusus && (
+            <div className="mt-3 grid grid-cols-2 gap-2.5 border-t border-line pt-3">
+              <TextField
+                label="Lebar (mm)"
+                type="number"
+                inputMode="numeric"
+                min={MIN_STICKER_WIDTH_MM}
+                max={MAX_STICKER_WIDTH_MM}
+                value={lebarInput}
+                error={lebarValid === null ? `Isi angka bulat ${MIN_STICKER_WIDTH_MM}–${MAX_STICKER_WIDTH_MM}.` : undefined}
+                onChange={(event) => updateCustomDimensions(event.target.value, tinggiInput)}
+              />
+              <TextField
+                label="Tinggi (mm)"
+                type="number"
+                inputMode="numeric"
+                min={MIN_STICKER_HEIGHT_MM}
+                max={MAX_STICKER_HEIGHT_MM}
+                value={tinggiInput}
+                error={tinggiValid === null ? `Isi angka bulat ${MIN_STICKER_HEIGHT_MM}–${MAX_STICKER_HEIGHT_MM}.` : undefined}
+                onChange={(event) => updateCustomDimensions(lebarInput, event.target.value)}
+              />
+            </div>
+          )}
+        </div>
+
+        <PratinjauStiker
+          dimensi={dimensi}
+          namaProduk={namaProduk}
+          rows={tampil}
+          bahanBagian={bahanBagian}
+          stickerRef={stickerRef}
+        >
+          <div id="status-ukuran-stiker" role="status" className="text-sm leading-snug">
+            {!ukuranValid ? (
+              <p className="text-danger-ink">Ukuran belum valid. Pratinjau memakai ukuran terakhir.</p>
+            ) : fit.muat ? (
+              <p className="flex items-center gap-1 font-semibold text-success-ink">
+                <Icon name="check" size={17} strokeWidth={2.5} /> Isi muat
+              </p>
+            ) : (
+              <p className="flex items-center gap-1 font-semibold text-warning-ink">
+                <Icon name="warning" size={17} className="shrink-0" /> Perlu tinggi sekitar {minimum.tinggiMm} mm
+              </p>
+            )}
           </div>
           <Button
             icon="printer"
@@ -322,206 +421,62 @@ function LabelBagian({
           >
             Simpan PDF label (1:1)
           </Button>
-        </div>
+        </PratinjauStiker>
 
-        {/* Pengatur ukuran stiker dalam milimeter */}
-        <div className="panel space-y-4 p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-bold text-ink">Ukuran stiker kemasan (milimeter)</h3>
-              <p className="text-xs text-ink-2">
-                Pilih ukuran stiker atau masukkan lebar dan tinggi dalam mm.
-              </p>
-            </div>
-            <div id="status-ukuran-stiker" role="status">
-              {ukuranValid ? (
-                <Pill tone={fit.muat ? 'success' : 'warning'} dot>
-                  {fit.muat
-                    ? `Muat pada ${dimensi.lebarMm} × ${dimensi.tinggiMm} mm (isi ~${fit.tinggiDibutuhkanMm} mm)`
-                    : `Butuh minimal ${minimum.lebarMm} × ${minimum.tinggiMm} mm`}
-                </Pill>
-              ) : (
-                <p className="text-xs font-semibold text-danger-ink">
-                  Perbaiki ukuran untuk mencetak. Pratinjau masih memakai ukuran terakhir yang valid.
-                </p>
+        {ukuranValid && !fit.muat && (
+          <Notice
+            tone="warning"
+            title="Perkiraan isi melebihi tinggi stiker"
+            className="cetak-tidak-dicetak min-w-0 md:col-start-1"
+          >
+            <p>Tinggi label di PDF menyesuaikan jika teks melebihi ukuran pilihan.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {minimum.tinggiMm <= MAX_STICKER_HEIGHT_MM && (
+                <Button size="md" variant="secondary" onClick={() => applyDimensions(minimum)}>
+                  Pakai {minimum.lebarMm} × {minimum.tinggiMm} mm
+                </Button>
+              )}
+              {standar.lebarMm <= MAX_STICKER_WIDTH_MM &&
+                standar.tinggiMm <= MAX_STICKER_HEIGHT_MM &&
+                !sameDimensions(standar, minimum) && (
+                <Button size="md" variant="secondary" onClick={() => applyDimensions(standar)}>
+                  Pakai {standar.lebarMm} × {standar.tinggiMm} mm
+                </Button>
               )}
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Ukuran stiker standar">
-            {STICKER_PRESETS_MM.map((preset) => {
-                const active = ukuranValid &&
-                preset.dimensi.lebarMm === dimensi.lebarMm &&
-                preset.dimensi.tinggiMm === dimensi.tinggiMm;
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => applyDimensions(preset.dimensi)}
-                  className={cn(
-                    'rounded-[12px] border px-3 py-2 text-left text-xs transition-colors',
-                    active
-                      ? 'border-2 border-brand bg-brand-tint/45 font-bold text-brand-deep'
-                      : 'border-line bg-paper hover:border-line-strong text-ink',
-                  )}
-                >
-                  <span className="block font-semibold">{preset.label}</span>
-                  <span className="text-[11px] text-ink-3">{preset.kegunaan}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="grid gap-3 xs:grid-cols-2 sm:max-w-md">
-            <TextField
-              id="stiker-lebar-mm"
-              label="Lebar stiker (mm)"
-              type="number"
-              inputMode="numeric"
-              min={MIN_STICKER_WIDTH_MM}
-              max={MAX_STICKER_WIDTH_MM}
-              value={lebarInput}
-              hint={`${MIN_STICKER_WIDTH_MM}–${MAX_STICKER_WIDTH_MM} mm`}
-              error={lebarValid === null ? `Masukkan lebar bulat antara ${MIN_STICKER_WIDTH_MM} dan ${MAX_STICKER_WIDTH_MM} mm.` : undefined}
-              onChange={(event) => {
-                const raw = event.target.value;
-                const lebarMm = parseDimension(raw, MIN_STICKER_WIDTH_MM, MAX_STICKER_WIDTH_MM);
-                setLebarInput(raw);
-                if (lebarMm !== null) setDimensi((prev) => ({ ...prev, lebarMm }));
-              }}
-            />
-            <TextField
-              id="stiker-tinggi-mm"
-              label="Tinggi stiker (mm)"
-              type="number"
-              inputMode="numeric"
-              min={MIN_STICKER_HEIGHT_MM}
-              max={MAX_STICKER_HEIGHT_MM}
-              value={tinggiInput}
-              hint={`${MIN_STICKER_HEIGHT_MM}–${MAX_STICKER_HEIGHT_MM} mm`}
-              error={tinggiValid === null ? `Masukkan tinggi bulat antara ${MIN_STICKER_HEIGHT_MM} dan ${MAX_STICKER_HEIGHT_MM} mm.` : undefined}
-              onChange={(event) => {
-                const raw = event.target.value;
-                const tinggiMm = parseDimension(raw, MIN_STICKER_HEIGHT_MM, MAX_STICKER_HEIGHT_MM);
-                setTinggiInput(raw);
-                if (tinggiMm !== null) setDimensi((prev) => ({ ...prev, tinggiMm }));
-              }}
-            />
-          </div>
-
-          {ukuranValid && !fit.muat && fit.alasanTidakMuat && (
-            <Notice tone="warning" title="Ukuran stiker terlalu kecil untuk memuat seluruh butir wajib">
-              <p>{fit.alasanTidakMuat}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {minimum.tinggiMm <= MAX_STICKER_HEIGHT_MM && (
-                  <Button size="md" onClick={() => applyDimensions(minimum)}>
-                    Pakai ukuran minimum ({minimum.lebarMm} × {minimum.tinggiMm} mm)
-                  </Button>
-                )}
-                {standar.lebarMm <= MAX_STICKER_WIDTH_MM &&
-                  standar.tinggiMm <= MAX_STICKER_HEIGHT_MM &&
-                  (standar.lebarMm !== minimum.lebarMm || standar.tinggiMm !== minimum.tinggiMm) && (
-                  <Button
-                    variant="secondary"
-                    size="md"
-                    onClick={() => applyDimensions(standar)}
-                  >
-                    Pakai ukuran standar ({standar.lebarMm} × {standar.tinggiMm} mm)
-                  </Button>
-                )}
-              </div>
-            </Notice>
-          )}
-        </div>
-
-        {!siapUnduh && (
-          <Notice tone="danger" title="Label belum bisa diunduh: masih ada butir wajib yang kosong">
-            <p>
-              Aplikasi tidak mengarang isi label. Lengkapi butir berikut di isi produk, lalu buka
-              halaman ini lagi.
-            </p>
-            <ul id="butir-kosong-daftar" className="mt-2 list-disc space-y-1 pl-5">
-              {butirKosong.map((judul) => (
-                <li key={judul} className="font-semibold text-ink">
-                  {judul}
-                </li>
-              ))}
-            </ul>
-            <ButtonLink href={hrefIsian} variant="secondary" size="md" icon="edit" className="mt-3">
-              Lengkapi isian label
-            </ButtonLink>
-          </Notice>
-        )}
-
-        {catatan.length > 0 && (
-          <Notice tone="info" title="Yang diubah dan yang perlu kamu cek">
-            <ul className="list-disc space-y-1 pl-5">
-              {catatan.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
           </Notice>
         )}
       </div>
 
-      <div className="cetak-tidak-dicetak flex flex-wrap items-center gap-2" role="group" aria-label="Zoom pratinjau">
-        <span className="mr-1 text-sm font-semibold">Zoom pratinjau</span>
-        {PREVIEW_ZOOM.map((level) => (
-          <Button
-            key={level}
-            variant={zoom === level ? 'accent' : 'secondary'}
-            size="md"
-            aria-pressed={zoom === level}
-            onClick={() => setZoom(level)}
-          >
-            {level}%
-          </Button>
-        ))}
-      </div>
+      {!siapUnduh && (
+        <Notice tone="danger" title="Lengkapi butir wajib untuk menyimpan label" className="cetak-tidak-dicetak">
+          <ul id="butir-kosong-daftar" className="list-disc space-y-1 pl-5">
+            {butirKosong.map((judul) => <li key={judul}>{judul}</li>)}
+          </ul>
+          {editButton('Lengkapi isian label', 'mt-3')}
+        </Notice>
+      )}
 
-      <div
-        role="region"
-        aria-label="Area pratinjau stiker"
-        tabIndex={0}
-        className="overflow-x-auto rounded-[20px] border border-line bg-surface p-4 sm:p-6 print:overflow-visible print:rounded-none print:border-0 print:p-0"
-      >
-        <div
-          ref={stickerRef}
-          className="label-cetak"
-          style={stickerStyle}
-          aria-label={`Pratinjau label ${namaProduk} ukuran ${dimensi.lebarMm} kali ${dimensi.tinggiMm} milimeter`}
-          role="group"
-        >
-          {tampil.map((row) => (
-            <LabelBaris key={row.kunci} row={row} bahanBagian={bahanBagian} />
-          ))}
-        </div>
-
-        {/* Garis skala 10 mm ikut tercetak di PDF untuk verifikasi penggaris fisik */}
-        <div
-          aria-label="Garis uji skala 10 milimeter"
-          className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-ink-2 print:break-inside-avoid print:text-black"
-        >
-          <div className="inline-flex items-center gap-2 rounded border border-line bg-paper px-2.5 py-1.5 print:border-black print:bg-white">
-            <span className="skala-10mm-bar" aria-hidden />
-            <span className="type-code font-bold text-ink print:text-black">10 mm</span>
-          </div>
-          <span className="cetak-tidak-dicetak">
-            Ukur garis ini dengan penggaris setelah dicetak (harus tepat <strong>10 mm</strong> / 1
-            cm). Bila menyusut, matikan <em>Fit to page</em> di pengaturan cetak. Ukuran stiker:{' '}
-            <strong>
-              {dimensi.lebarMm} × {dimensi.tinggiMm} mm
-            </strong>
-            .
-          </span>
-        </div>
-      </div>
+      {catatan.length > 0 && (
+        <Notice tone="info" title="Yang diubah dan yang perlu kamu cek" className="cetak-tidak-dicetak">
+          <ul className="list-disc space-y-1 pl-5">
+            {catatan.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </Notice>
+      )}
 
       <details className="cetak-tidak-dicetak">
-        <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold text-brand-deep">
-          Dasar pasal &amp; ukuran huruf tiap butir
+        <summary className="cursor-pointer py-3 text-sm font-semibold text-brand-deep">
+          Panduan cetak dan ukuran huruf
         </summary>
+        <p className="max-w-prose text-sm text-ink-2">
+          Pilih &ldquo;Simpan sebagai PDF&rdquo; dengan skala 100% di dialog cetak. Ukur garis uji pada hasil cetak dengan penggaris.
+          Panjangnya harus tepat 10 mm. Matikan <em>Fit to page</em> jika garis menyusut.
+        </p>
+        <p className="mt-2 max-w-prose text-sm text-ink-2">
+          Tinggi huruf kecil &ldquo;o&rdquo; adalah {measureLowercaseOHeightMm(BODY_FONT_SIZE_MM).toLocaleString('id-ID')} mm pada teks umum
+          dan {measureLowercaseOHeightMm(HEADING_WARNING_FONT_SIZE_MM).toLocaleString('id-ID')} mm pada nama pangan serta peringatan alergen.
+        </p>
         <ul className="mt-2 divide-y divide-line rounded-[16px] border border-line bg-surface">
           {fit.rincianBaris.map((est) => {
             const row = tampil.find((r) => r.kunci === est.kunci);
@@ -552,12 +507,112 @@ function LabelBagian({
   );
 }
 
+function PratinjauStiker({
+  dimensi,
+  namaProduk,
+  rows,
+  bahanBagian,
+  stickerRef,
+  children,
+}: {
+  dimensi: StickerDimensionsMm;
+  namaProduk: string;
+  rows: CorrectedLabelRow[];
+  bahanBagian: CorrectedLabel['bahanBagian'];
+  stickerRef: RefObject<HTMLDivElement | null>;
+  children: ReactNode;
+}) {
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState<PreviewZoom>('muat');
+  const [skalaMuat, setSkalaMuat] = useState(1);
+  const { lebarMm, tinggiMm } = dimensi;
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    const sticker = stickerRef.current;
+    if (!canvas || !sticker) return;
+
+    const ukur = () => {
+      if (canvas.clientWidth <= 2 || canvas.clientHeight <= 2) return;
+      setSkalaMuat(Math.min(
+        1.5,
+        (canvas.clientWidth - 2) / sticker.offsetWidth,
+        (canvas.clientHeight - 2) / sticker.offsetHeight,
+      ));
+    };
+    ukur();
+    const observer = new ResizeObserver(ukur);
+    observer.observe(canvas);
+    observer.observe(sticker);
+    return () => observer.disconnect();
+  }, [lebarMm, tinggiMm, stickerRef]);
+
+  useEffect(() => {
+    canvasRef.current?.scrollTo({ left: 0, top: 0, behavior: 'instant' });
+  }, [lebarMm, tinggiMm, zoom]);
+
+  const stickerStyle = {
+    '--stiker-lebar': `${lebarMm}mm`,
+    '--stiker-tinggi': `${tinggiMm}mm`,
+    '--stiker-zoom': zoom === 'muat' ? skalaMuat : Number(zoom) / 100,
+  } as CSSProperties;
+
+  return (
+    <div className="panel min-w-0 space-y-3 p-3 sm:p-4 md:sticky md:top-24 md:col-start-2 md:row-span-2 md:row-start-1 print:contents print:space-y-0">
+      <header className="cetak-tidak-dicetak flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="type-h3 text-ink">Pratinjau</h3>
+          <p className="text-xs text-ink-2 tabular">{lebarMm} × {tinggiMm} mm</p>
+        </div>
+        <Segmented
+          label="Pembesaran pratinjau"
+          value={zoom}
+          onChange={setZoom}
+          options={PREVIEW_ZOOM}
+          className="[&>label]:px-1 [&>label]:text-[0.6875rem] xs:[&>label]:px-2.5 xs:[&>label]:text-xs"
+        />
+      </header>
+
+      <div className="cetak-kanvas rounded-[16px] border border-line bg-brand-tint p-2.5 sm:p-4 print:contents">
+        <div
+          ref={canvasRef}
+          role="region"
+          aria-label="Area pratinjau stiker"
+          tabIndex={0}
+          className="h-[clamp(8rem,30svh,18rem)] overflow-auto xs:h-[clamp(9rem,34svh,18rem)] md:h-[clamp(14rem,48svh,27rem)] print:contents"
+        >
+          <div className="grid min-h-full w-max min-w-full place-items-center print:contents">
+            <div
+              ref={stickerRef}
+              className="label-cetak shadow-raised print:shadow-none"
+              style={stickerStyle}
+              aria-label={`Pratinjau label ${namaProduk} ukuran ${lebarMm} kali ${tinggiMm} milimeter`}
+              role="group"
+            >
+              {rows.map((row) => <LabelBaris key={row.kunci} row={row} bahanBagian={bahanBagian} />)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="cetak-tidak-dicetak flex flex-wrap items-center justify-between gap-2">
+        {children}
+      </div>
+
+      <div className="hidden w-fit items-center gap-2 rounded border border-black bg-white px-2.5 py-1.5 text-black print:mt-3 print:flex print:break-inside-avoid">
+        <span className="skala-10mm-bar" aria-hidden />
+        <span className="type-code font-bold">10 mm</span>
+      </div>
+    </div>
+  );
+}
+
 function LabelBaris({
   row,
   bahanBagian,
 }: {
   row: CorrectedLabelRow;
-  bahanBagian: Array<{ teks: string; alergen: boolean }>;
+  bahanBagian: CorrectedLabel['bahanBagian'];
 }) {
   if (row.kosong) {
     return <p className="italic">[Belum diisi: {row.judul}]</p>;

@@ -2,14 +2,15 @@ import Image from 'next/image';
 import { Icon } from '@/components/icons/icon';
 
 export interface SamplePhoto {
+  caseId: string;
   file: string;
   nama: string;
 }
 
-const SAMPLE_PHOTOS: SamplePhoto[] = [
-  { file: 'kue-kering-kacang.jpg', nama: 'Kue kering kacang' },
-  { file: 'sambal-bawang.jpg', nama: 'Sambal bawang' },
-  { file: 'kerupuk-ikan.jpg', nama: 'Kerupuk ikan' },
+export const SAMPLE_PHOTOS: SamplePhoto[] = [
+  { caseId: 'kue-kering-tampak-lengkap', file: 'kue-kering-kacang.jpg', nama: 'Kue kering kacang' },
+  { caseId: 'sambal-bawang-rumahan', file: 'sambal-bawang.jpg', nama: 'Sambal bawang' },
+  { caseId: 'kerupuk-ikan-klaim-gizi', file: 'kerupuk-ikan.jpg', nama: 'Kerupuk ikan' },
 ];
 
 export const samplePhotoUrl = (photo: SamplePhoto) => `/contoh-foto/${photo.file}`;

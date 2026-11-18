@@ -391,6 +391,16 @@ describe('buildCorrectedLabel: perbaikan otomatis', () => {
     expect(result.catatan.filter((c) => c.includes('dibuang'))).toHaveLength(2);
   });
 
+  it.each(['Meny ehatkan', 'Meny\u200behatkan'])('membuang klaim "%s" yang terbelah saat dibaca', (klaim) => {
+    const pernyataan = `${klaim} untuk keluarga · Tinggi protein`;
+    const result = buildCorrectedLabel(
+      makeLabel({ pernyataanLain: [pernyataan, 'Renyah dan gurih'] }),
+      makeAnswers(),
+    );
+    expect(row(result, 'pernyataanLain').teks).toBe('Renyah dan gurih');
+    expect(result.catatan.some((item) => item.includes(`"${pernyataan}" dibuang`))).toBe(true);
+  });
+
   it('tidak pernah mengarang alamat atau nomor izin saat kosong', () => {
     const result = buildCorrectedLabel(
       makeLabel({ alamatProdusen: '', nomorIzinTeks: '' }),

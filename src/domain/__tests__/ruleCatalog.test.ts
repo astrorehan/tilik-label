@@ -67,7 +67,6 @@ describe('katalog aturan', () => {
   });
 
   it('menandai butir yang tidak bisa dicek otomatis', () => {
-    expect(entry('L-13')?.penanda).toContain('tidak_bisa_dari_foto');
     expect(entry('L-14')?.penanda).toContain('tidak_bisa_dari_foto');
     expect(entry('I-08')?.penanda).toContain('perlu_dinas');
     expect(entry('G-01')?.penanda).toContain('belum_otomatis');
@@ -75,6 +74,7 @@ describe('katalog aturan', () => {
 
   it('cara cek menjelaskan perilaku sebenarnya', () => {
     expect(entry('L-12')?.caraCek).toMatch(/kalimat peringatan/);
+    expect(entry('L-13')?.penanda).toContain('dari_label');
     expect(entry('L-18')?.penanda).toContain('tidak_bisa_dari_foto');
     expect(entry('L-18')?.caraCek).toMatch(/Pasal 63/);
     expect(entry('L-19')?.caraCek).toMatch(/belum dijawab/);

@@ -1,4 +1,5 @@
 import { evaluateLabelRules } from './labelRules';
+import { validateIngredientFormatting } from './allergens';
 import { evaluatePermitPath } from './permitRules';
 import { LABEL_RULE_METADATA, PERMIT_RULE_METADATA, REGULATION_LAST_READ } from './regulations';
 import type {
@@ -164,7 +165,16 @@ export function sanitizeCheckInput(
     butuhPenangananKhusus: boolOrNull(rawAnswers.butuhPenangananKhusus),
     wajibSni: boolOrNull(rawAnswers.wajibSni),
   };
-  return { label: { ...label, pernyataanLain: claims, unreadableFields: unreadable }, answers };
+  const formatting = validateIngredientFormatting(rawLabel.daftarBahanBerformat, label.daftarBahanTeks);
+  return {
+    label: {
+      ...label,
+      pernyataanLain: claims,
+      unreadableFields: unreadable,
+      ...(formatting ? { daftarBahanBerformat: formatting } : {}),
+    },
+    answers,
+  };
 }
 
 /** Semua kode aturan yang dikenal aplikasi. */

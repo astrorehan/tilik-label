@@ -83,7 +83,7 @@ const LABEL_CARA_CEK: Record<LabelRuleId, CaraCek> = {
   'L-01': DARI_LABEL,
   'L-02': DARI_LABEL,
   'L-03': {
-    caraCek: 'Dibandingkan dengan resep dari pengguna.',
+    caraCek: 'Dibandingkan dengan persentase yang tercantum di daftar bahan atau takaran resep dari pengguna.',
     penanda: ['dari_label', 'butuh_jawaban'],
   },
   'L-04': DARI_LABEL,
@@ -92,14 +92,20 @@ const LABEL_CARA_CEK: Record<LabelRuleId, CaraCek> = {
   'L-07': LABEL_DAN_JAWABAN,
   'L-08': DARI_LABEL,
   'L-09': DARI_LABEL,
-  'L-10': LABEL_DAN_JAWABAN,
+  'L-10': {
+    caraCek: 'Tanggal lengkap bisa dicek langsung. Jika label hanya memuat bulan dan tahun, pemeriksaan memakai umur simpan dari jawaban atau keterangan label.',
+    penanda: ['dari_label', 'butuh_jawaban'],
+  },
   'L-11': DARI_LABEL,
   'L-12': {
     caraCek:
       'Daftar bahan dicocokkan dengan daftar alergen, dan kalimat peringatan alergen pada label juga diperiksa.',
     penanda: ['dari_label'],
   },
-  'L-13': TIDAK_DARI_FOTO,
+  'L-13': {
+    caraCek: 'Cetak tebal bahan alergen diperiksa jika formatnya terlihat jelas di foto. Foto yang meragukan perlu dicocokkan dengan desain cetak.',
+    penanda: ['dari_label'],
+  },
   'L-14': TIDAK_DARI_FOTO,
   'L-15': DARI_LABEL,
   'L-16': LABEL_DAN_RESEP_L16,
@@ -115,8 +121,8 @@ const LABEL_CARA_CEK: Record<LabelRuleId, CaraCek> = {
 
 const PERMIT_CARA_CEK: Record<PermitRuleId, CaraCek> = {
   'I-01': {
-    caraCek: 'Dari jawabanmu tentang umur simpan. Dipakai untuk menentukan jalur izin.',
-    penanda: ['butuh_jawaban'],
+    caraCek: 'Dari jawabanmu atau umur simpan yang dinyatakan secara jelas di label.',
+    penanda: ['dari_label', 'butuh_jawaban'],
   },
   'I-02': {
     caraCek:
@@ -146,7 +152,7 @@ const PERMIT_CARA_CEK: Record<PermitRuleId, CaraCek> = {
   },
   'I-08': {
     caraCek:
-      'Belum diperiksa karena Lampiran I belum terbaca. Perlu dicek ke Dinas Kesehatan apakah jenis pangannya boleh lewat jalur rumah tangga.',
+      'Jenis pangan dan cara pengolahannya perlu dicocokkan dengan kriteria Lampiran I bersama Dinas Kesehatan.',
     penanda: ['perlu_dinas'],
   },
 };
@@ -223,7 +229,7 @@ export const RULE_CATALOG: RuleCatalogSection[] = [
 
 /** Hal yang sengaja tidak diperiksa atau tidak dikerjakan aplikasi. */
 export const HAL_TIDAK_DIPERIKSA: string[] = [
-  'Bahan alergen dicetak tebal (L-13) dan ukuran huruf minimal (L-14): keduanya tidak bisa dicek dari foto, hanya ditampilkan sebagai pengingat.',
+  'Ukuran fisik huruf (L-14) perlu dicek pada desain skala 100% atau uji cetak.',
   'Kecocokan jenis pangan dengan Lampiran I Peraturan BPOM 4/2024 (I-08): perlu dicek ke Dinas Kesehatan.',
   'Jaminan bahwa label pasti lolos pemeriksaan Dinas Kesehatan.',
   'Pengganti uji laboratorium, dan pendaftaran izin secara daring.',

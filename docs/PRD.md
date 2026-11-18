@@ -130,6 +130,7 @@ Label teks siap cetak yang memuat semua butir wajib dalam urutan yang benar, dan
 
 **F-09 · Contoh untuk juri · P0**
 Tiga label rekaan dengan kesalahan yang berbeda. Hasil baca untuk ketiganya disimpan, sehingga tetap tampil walau layanan model tidak tersedia.
+- Mode `/juri` membuka isian atau hasil pemeriksaan dengan data contoh dan mendukung pratinjau cetak selama sesi demo.
 - [ ] Dari tiga contoh, minimal satu tampak lengkap di permukaan tetapi gagal di urutan bahan, alergen, dan klaim.
 - [ ] Hasil pemeriksaan muncul dalam tiga detik.
 - [ ] Label contoh ditandai jelas sebagai rekaan.
@@ -174,7 +175,7 @@ Semua pasal di bawah dibaca dari teks resmi pada 12 November 2026.
 | L-10 | Untuk umur simpan sampai 3 bulan, kedaluwarsa memuat tanggal, bulan, dan tahun | 34 | Label dan jawaban pengguna |
 | L-11 | Produk rumah tangga mencantumkan tulisan "P-IRT" | 36 | Dari label |
 | L-12 | Bahan alergen ada di daftar bahan dan disertai kalimat "Mengandung alergen, lihat daftar bahan yang dicetak tebal" | 49, 51 | Daftar bahan dicocokkan dengan daftar alergen |
-| L-13 | Alergen dicetak tebal | 51 | Tidak bisa dicek dari foto, ditampilkan sebagai pengingat |
+| L-13 | Alergen dicetak tebal | 51 | Dari foto bila gaya huruf terlihat jelas dan salinan cocok dengan daftar bahan |
 | L-14 | Ukuran huruf minimal 1 mm, nama produk dan peringatan minimal 2 mm | 9 | Tidak bisa dicek dari foto, ditampilkan sebagai pengingat |
 | L-15 | Tidak ada pernyataan bahwa produk menyehatkan, berfungsi sebagai obat, atau meningkatkan kecerdasan | 67 | Dari label |
 | L-16 | Keterangan "tanpa pengawet" dan sejenisnya hanya untuk lima jenis bahan tambahan yang diizinkan dan hanya bila benar | 24 | Label dan resep |

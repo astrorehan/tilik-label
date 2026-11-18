@@ -116,6 +116,7 @@ export const ICON_SHAPES = {
     path('M9 10.6h6M13 8.6l2 2-2 2'),
   ],
   send: [path('M21 3 3.2 10.4l7 2.6 2.6 7Z'), path('M10.2 13 21 3')],
+  microphone: [rect(9, 3, 6, 11, 3), path('M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6')],
   printer: [
     path('M7 8.2V3.6h10v4.6'),
     rect(3.5, 8.2, 17, 8, 1.6),

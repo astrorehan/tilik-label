@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   MAX_FREE_QUESTION_LENGTH,
@@ -6,14 +6,14 @@ import {
   type AssistantRequest,
   type QuickQuestionId,
 } from '@/domain/assistant';
-import type { AdditionalAnswers, AnyRuleId, LabelCheckReport, LabelData, LabelRuleResult } from '@/domain';
+import type { AnyRuleId, LabelCheckReport, LabelRuleResult } from '@/domain';
+import { LABEL_FIELD_TITLES, labelEditRequest, type LabelEdit } from '@/domain/tilikActions';
+import { prefersReducedMotion } from '@/lib/pageFocus';
+import { requestTilik, type TilikInput } from '@/lib/tilikClient';
 import { AssistantAnswer } from './AssistantAnswer';
 import { TilikMascot, type TilikMood } from './TilikMascot';
 
-export interface AssistantInput {
-  label: LabelData;
-  answers: AdditionalAnswers;
-}
+export type AssistantInput = TilikInput;
 
 interface Reply {
   kind: 'answer' | 'notice' | 'error';
@@ -92,6 +92,7 @@ export function AssistantChat({
   ruleId,
   report,
   finding,
+  onApplyLabelEdit,
 }: {
   id: string;
   open: boolean;
@@ -101,12 +102,15 @@ export function AssistantChat({
   ruleId?: AnyRuleId;
   report?: LabelCheckReport;
   finding?: LabelRuleResult;
+  onApplyLabelEdit?: (edit: LabelEdit) => void;
 }) {
   const [history, setHistory] = useState<Exchange[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const pendingRequest = useRef<AbortController>(null);
+  const latestInput = useRef(input);
   const scroller = useRef<HTMLDivElement>(null);
   const latestEntry = useRef<HTMLLIElement>(null);
+  const lastShown = useRef(0);
   const inputId = useId();
   const draftKey = ruleId ?? 'ringkasan';
   const draft = drafts[draftKey] ?? '';
@@ -120,18 +124,25 @@ export function AssistantChat({
 
   useEffect(() => () => pendingRequest.current?.abort(), []);
 
+  useLayoutEffect(() => {
+    latestInput.current = input;
+  }, [input]);
+
   useEffect(() => {
-    if (!open) return;
+    if (!open || history.length === lastShown.current) return;
     const frame = requestAnimationFrame(() => {
       const viewport = scroller.current;
       const entry = latestEntry.current;
       if (viewport && entry) {
-        // Mulai dari pertanyaan terbaru, termasuk ketika jawabannya lebih tinggi dari panel.
-        viewport.scrollTop += entry.getBoundingClientRect().top - viewport.getBoundingClientRect().top - 16;
+        lastShown.current = history.length;
+        viewport.scrollTo({
+          top: viewport.scrollTop + entry.getBoundingClientRect().top - viewport.getBoundingClientRect().top - 16,
+          behavior: prefersReducedMotion() ? 'instant' : 'smooth',
+        });
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [open, last]);
+  }, [open, history.length]);
 
   async function send(question: string, request: AssistantRequest) {
     if (pendingRequest.current) return;
@@ -140,12 +151,29 @@ export function AssistantChat({
     const exchange = { question, ruleId };
     setHistory((previous) => [...previous, exchange]);
 
-    const reply: Reply = input
-      ? await ask(input, request, controller.signal)
-      : {
-          kind: 'answer',
-          text: answerFromReport(report, finding, 'pertanyaanId' in request ? request.pertanyaanId : undefined),
-        };
+    let reply: Reply;
+    const command = onApplyLabelEdit && 'pertanyaanBebas' in request ? labelEditRequest(question) : null;
+    if (input && command && onApplyLabelEdit) {
+      const result = await requestTilik('ubah', { ...input, perintah: question }, controller.signal);
+      if (controller.signal.aborted) return;
+      if (!result.ok) {
+        reply = { kind: 'error', text: result.pesan };
+      } else if (latestInput.current !== input) {
+        reply = { kind: 'error', text: 'Isian label sudah berubah. Kirim perintah lagi untuk memakai versi terbaru.' };
+      } else if (result.edit.field !== command.field || !result.edit.text) {
+        reply = { kind: 'error', text: 'Aku belum bisa mencocokkan perubahan itu. Sebutkan kolom dan nilai barunya.' };
+      } else {
+        onApplyLabelEdit(result.edit);
+        reply = { kind: 'answer', text: `${LABEL_FIELD_TITLES[result.edit.field]} sekarang “${result.edit.text}”. Hasil pemeriksaan sudah diperbarui.` };
+      }
+    } else if (input) {
+      reply = await ask(input, request, controller.signal);
+    } else {
+      reply = {
+        kind: 'answer',
+        text: answerFromReport(report, finding, 'pertanyaanId' in request ? request.pertanyaanId : undefined),
+      };
+    }
 
     if (controller.signal.aborted) return;
     pendingRequest.current = null;
@@ -157,9 +185,9 @@ export function AssistantChat({
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-3 border-b border-line bg-brand-tint py-3 pr-15 pl-4 sm:gap-4 sm:py-4 sm:pl-5">
-        <div className="grid size-16 shrink-0 place-items-center rounded-[20px] bg-brand-soft sm:size-[4.75rem]">
-          <TilikMascot size={68} mood={mood} animated={open} className="size-14 sm:size-[4.25rem]" />
+      <header className="assistant-chat-header flex shrink-0 items-center gap-3 border-b border-line bg-brand-tint py-3 pr-15 pl-4 sm:gap-4 sm:py-4 sm:pl-5">
+        <div className="assistant-chat-mascot grid size-16 shrink-0 place-items-center rounded-[20px] bg-brand-soft sm:size-[4.75rem]">
+          <TilikMascot size={68} mood={mood} animated={open} className="size-[88%]" />
         </div>
         <div className="min-w-0">
           <h2 id={`${id}-title`} className="type-h2 text-ink">Tanya Tilik</h2>
@@ -175,7 +203,7 @@ export function AssistantChat({
           <ol className="space-y-5">
             {history.map((item, index) => (
               <li key={index} ref={item === last ? latestEntry : undefined} className="space-y-3">
-                <div className="ml-auto w-fit max-w-[88%] rounded-[18px] rounded-br-sm bg-brand-tint px-3.5 py-2.5 text-sm text-ink">
+                <div className="assistant-question-in ml-auto w-fit max-w-[88%] rounded-[18px] rounded-br-sm bg-brand-tint px-3.5 py-2.5 text-sm text-ink">
                   <p className="mb-1 text-xs font-semibold text-brand-deep">
                     <span className="sr-only">Pertanyaan tentang </span>
                     {item.ruleId ?? 'Ringkasan'}
@@ -189,15 +217,24 @@ export function AssistantChat({
                   <div className="min-w-0 flex-1 pt-1">
                     <p className="mb-1.5 text-xs font-bold text-brand-deep">Tilik</p>
                     {item.reply ? (
-                      item.reply.kind === 'answer' ? (
-                        <AssistantAnswer text={item.reply.text} />
-                      ) : (
-                        <p className="rounded-xl border border-warning bg-warning-tint px-3 py-2.5 text-sm leading-relaxed wrap-anywhere text-warning-ink">
-                          {item.reply.text}
-                        </p>
-                      )
+                      <div key="reply" className="assistant-reply-in">
+                        {item.reply.kind === 'answer' ? (
+                          <AssistantAnswer text={item.reply.text} />
+                        ) : (
+                          <p className="rounded-xl border border-warning bg-warning-tint px-3 py-2.5 text-sm leading-relaxed wrap-anywhere text-warning-ink">
+                            {item.reply.text}
+                          </p>
+                        )}
+                      </div>
                     ) : (
-                      <p className="text-sm text-ink-2">Sedang menyiapkan jawaban…</p>
+                      <div key="pending" className="assistant-reply-in space-y-2.5">
+                        <div aria-hidden className="assistant-reply-skeleton">
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                        <p className="text-xs text-ink-2">Sedang menyiapkan jawaban…</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -239,25 +276,28 @@ export function AssistantChat({
             }}
           >
             <label htmlFor={inputId} className="sr-only">
-              Pertanyaan lain tentang {ruleId ? `temuan ${ruleId}` : 'hasil pemeriksaan label'}
+              {onApplyLabelEdit ? 'Pertanyaan atau perintah untuk mengubah label' : `Pertanyaan lain tentang ${ruleId ? `temuan ${ruleId}` : 'hasil pemeriksaan label'}`}
             </label>
             <input
               id={inputId}
               type="text"
+              enterKeyHint="send"
               value={draft}
               maxLength={MAX_FREE_QUESTION_LENGTH}
               onChange={(event) => {
                 const text = event.target.value;
                 setDrafts((previous) => ({ ...previous, [draftKey]: text }));
               }}
-              placeholder={ruleId ? 'Tanya soal temuan ini…' : 'Tanya soal labelmu…'}
-              className="min-h-11 min-w-0 flex-1 rounded-[14px] border border-line-strong bg-paper px-3 text-base text-ink placeholder:text-ink-3 focus:border-brand"
+              placeholder={onApplyLabelEdit ? 'Tanya atau ubah label…' : ruleId ? 'Tanya soal temuan ini…' : 'Tanya soal labelmu…'}
+              className="min-h-11 min-w-0 flex-1 rounded-[14px] border border-line-strong bg-paper px-3 text-base text-ink placeholder:text-ink-3 focus:border-brand focus:shadow-[0_0_0_3px_var(--color-brand-soft)] focus:outline-none"
             />
             <Button type="submit" size="md" icon="send" className="shrink-0 px-3.5!" disabled={busy || !draft.trim()}>
-              Tanya
+              {onApplyLabelEdit ? 'Kirim' : 'Tanya'}
             </Button>
           </form>
-          <p className="mt-2 text-xs text-ink-3">Status temuan mengikuti laporan pemeriksaan.</p>
+          <p className="assistant-composer-note mt-2 text-xs text-ink-3">
+            {onApplyLabelEdit ? 'Coba “ganti kedaluwarsa jadi 25 Des 2026”.' : 'Status temuan mengikuti laporan pemeriksaan.'}
+          </p>
         </footer>
       )}
     </>

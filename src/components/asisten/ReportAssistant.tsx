@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import type { LabelCheckReport, LabelRuleId } from '@/domain';
+import type { LabelEdit } from '@/domain/tilikActions';
 import { AssistantChat, type AssistantInput } from './AssistantChat';
 import { AssistantDrawer, type AssistantLaunch } from './AssistantDrawer';
 import { TilikMascot } from './TilikMascot';
@@ -31,11 +32,13 @@ export function ReportAssistant({
   report,
   productTitle,
   input,
+  onApplyLabelEdit,
   children,
 }: {
   report: LabelCheckReport;
   productTitle: string;
   input?: AssistantInput;
+  onApplyLabelEdit?: (edit: LabelEdit) => void;
   children: ReactNode;
 }) {
   const dialogId = useId();
@@ -89,6 +92,7 @@ export function ReportAssistant({
             ruleId={launch.ruleId}
             report={report}
             finding={finding}
+            onApplyLabelEdit={onApplyLabelEdit}
           />
         </AssistantDrawer>
       )}

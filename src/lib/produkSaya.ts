@@ -9,6 +9,7 @@ import {
   type ProductionEquipment,
   type RecipeIngredient,
 } from '@/domain';
+import { validateIngredientFormatting } from '@/domain/allergens';
 import { getSafeStorage, readJson, readRaw, writeJson, type StorageLike } from './safeStorage';
 
 /** Kunci penyimpanan; angka versi dinaikkan bila bentuk data berubah. */
@@ -91,6 +92,8 @@ export function parseLabel(raw: unknown): LabelData | null {
       ? (unreadable.filter((k) => typeof k === 'string' && FIELD_KEYS.includes(k)) as LabelFieldKey[])
       : [];
   }
+  const formatting = validateIngredientFormatting(raw.daftarBahanBerformat, String(label.daftarBahanTeks));
+  if (formatting) label.daftarBahanBerformat = formatting;
   return label as unknown as LabelData;
 }
 
