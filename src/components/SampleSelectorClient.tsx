@@ -1,217 +1,153 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { LedgerRow, Pill } from "@/components/ui/surface";
-import { PermitPathView } from "@/components/periksa/PermitPathView";
-import { ButtonLink } from "@/components/ui/button";
-import {
-  ADDITIONAL_QUESTIONS,
-  evaluateLabelRules,
-  evaluatePermitPath,
-} from "@/domain";
-import type { AdditionalQuestionId } from "@/domain";
-import type { SampleLabelCase } from "@/domain/sampleLabels";
-import { cn } from "@/lib/cn";
-import { LabelReportView } from "./LabelReportView";
+import Image from 'next/image';
+import { useState } from 'react';
+import { Icon } from '@/components/icons/icon';
+import { PermitPathView } from '@/components/periksa/PermitPathView';
+import { Disclosure } from '@/components/ui/disclosure';
+import { evaluateLabelRules, evaluatePermitPath } from '@/domain';
+import type { SampleLabelCase } from '@/domain/sampleLabels';
+import { cn } from '@/lib/cn';
+import { LabelReportView } from './LabelReportView';
 
-interface SampleSelectorClientProps {
-  cases: SampleLabelCase[];
-}
+const PACKAGES: Record<string, { file: string; name: string }> = {
+  'kue-kering-tampak-lengkap': { file: 'kue-kering-kacang.jpg', name: 'Kue kacang' },
+  'sambal-bawang-rumahan': { file: 'sambal-bawang.jpg', name: 'Sambal bawang' },
+  'kerupuk-ikan-klaim-gizi': { file: 'kerupuk-ikan.jpg', name: 'Kerupuk ikan' },
+};
 
-const EQUIPMENT_LABEL = {
-  manual: "Manual",
-  semi_otomatis: "Semi otomatis",
-  otomatis: "Otomatis",
-} as const;
-
-function yesNo(value: boolean | null | undefined): string {
-  if (value === true) return "Ya";
-  if (value === false) return "Tidak";
-  return "-";
-}
-
-function describeAnswer(
-  id: AdditionalQuestionId,
-  item: SampleLabelCase,
-): string {
-  const { answers } = item;
-  switch (id) {
-    case "umurSimpan":
-      return answers.umurSimpanHari === null
-        ? "-"
-        : `${answers.umurSimpanHari} hari`;
-    case "caraSimpan":
-      return yesNo(answers.bergantungCaraSimpan);
-    case "sertifikatHalal":
-      return yesNo(answers.punyaSertifikatHalal);
-    case "alatProduksi":
-      return answers.alatProduksi ? EQUIPMENT_LABEL[answers.alatProduksi] : "-";
-    default:
-      return "-";
-  }
-}
-
-export function SampleSelectorClient({ cases }: SampleSelectorClientProps) {
-  const [selectedId, setSelectedId] = useState(cases[0]?.id ?? "");
-  const activeCase = cases.find((item) => item.id === selectedId) ?? cases[0];
-
-  if (!activeCase) {
-    return null;
-  }
-
-  const report = evaluateLabelRules(activeCase.label, activeCase.answers);
-  const permitResult = evaluatePermitPath(activeCase.label, activeCase.answers);
-  const { label } = activeCase;
-  const labelFields = [
-    { label: "Nama produk", value: label.namaProduk },
-    { label: "Daftar bahan", value: label.daftarBahanTeks },
-    { label: "Berat / isi bersih", value: label.beratBersihTeks },
-    { label: "Nama produsen", value: label.namaProdusen },
-    { label: "Alamat produsen", value: label.alamatProdusen },
-    { label: "Keterangan halal", value: label.keteranganHalalTeks },
-    { label: "Kode produksi", value: label.kodeProduksiTeks },
-    { label: "Tanggal produksi", value: label.tanggalProduksiTeks },
-    { label: "Kedaluwarsa", value: label.kedaluwarsaTeks },
-    { label: "Nomor izin", value: label.nomorIzinTeks },
-    { label: "Pernyataan alergen", value: label.pernyataanAlergenTeks },
-    { label: "Cara penyimpanan", value: label.caraPenyimpananTeks },
+function SampleData({ sample }: { sample: SampleLabelCase }) {
+  const { label, answers } = sample;
+  const labelRows = [
+    ['Nama jenis pangan', label.namaProduk],
+    ['Daftar bahan', label.daftarBahanTeks],
+    ['Isi bersih', label.beratBersihTeks],
+    ['Nama produsen', label.namaProdusen],
+    ['Alamat produsen', label.alamatProdusen],
+    ['Keterangan halal', label.keteranganHalalTeks],
+    ['Kode produksi', label.kodeProduksiTeks],
+    ['Tanggal produksi', label.tanggalProduksiTeks],
+    ['Kedaluwarsa', label.kedaluwarsaTeks],
+    ['Nomor izin', label.nomorIzinTeks],
+    ['Pernyataan alergen', label.pernyataanAlergenTeks],
+    ['Cara penyimpanan', label.caraPenyimpananTeks],
+    ['Klaim kemasan', label.pernyataanLain.join(' · ')],
   ];
-  const sortedRecipe = activeCase.answers.resep
-    .slice()
-    .sort((a, b) => b.jumlahGram - a.jumlahGram);
+  const yesNo = (value: boolean | null | undefined) => value == null ? '—' : value ? 'Ya' : 'Tidak';
+  const equipment = { manual: 'Manual', semi_otomatis: 'Semi otomatis', otomatis: 'Otomatis' };
+  const answerRows = [
+    ['Umur simpan', answers.umurSimpanHari == null ? '—' : `${answers.umurSimpanHari} hari`],
+    ['Cara simpan khusus', yesNo(answers.bergantungCaraSimpan)],
+    ['Sertifikat halal', yesNo(answers.punyaSertifikatHalal)],
+    ['Alat produksi', answers.alatProduksi ? equipment[answers.alatProduksi] : '—'],
+  ];
 
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
+    <div className="space-y-4 text-sm">
+      <div>
+        <h2 className="font-semibold">Tulisan pada label</h2>
+        <dl className="mt-1 divide-y divide-line">
+          {labelRows.map(([name, value]) => (
+            <div key={name} className="py-2">
+              <dt className="font-semibold">{name}</dt>
+              <dd className="wrap-anywhere text-ink-2">{value || '—'}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <div>
+        <h2 className="font-semibold">Data produk</h2>
+        <dl className="mt-1 divide-y divide-line">
+          {answerRows.map(([name, value]) => (
+            <div key={name} className="flex justify-between gap-2 py-2">
+              <dt className="font-semibold">{name}</dt>
+              <dd className="text-ink-2">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <div>
+        <h2 className="font-semibold">Takaran resep</h2>
+        <ul className="mt-1 divide-y divide-line">
+          {answers.resep.slice().sort((a, b) => b.jumlahGram - a.jumlahGram).map((item) => (
+            <li key={item.nama} className="flex justify-between gap-2 py-2 text-ink-2">
+              <span>{item.nama}</span>
+              <span className="tabular shrink-0">{item.jumlahGram} g</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
+  const [selectedId, setSelectedId] = useState(cases[0]?.id);
+  const sample = cases.find((item) => item.id === selectedId) ?? cases[0];
+  if (!sample) return null;
+
+  const photo = PACKAGES[sample.id];
+  const report = evaluateLabelRules(sample.label, sample.answers);
+  const permit = evaluatePermitPath(sample.label, sample.answers);
+
+  return (
+    <div className="space-y-5">
+      <div role="group" aria-label="Pilih contoh kemasan" className="grid grid-cols-3 gap-2 sm:gap-3">
         {cases.map((item) => {
-          const isSelected = item.id === activeCase.id;
+          const active = item.id === sample.id;
+          const choice = PACKAGES[item.id];
           return (
             <button
               key={item.id}
               type="button"
+              aria-pressed={active}
               onClick={() => setSelectedId(item.id)}
-              aria-pressed={isSelected}
               className={cn(
-                "flex flex-col items-start rounded-[20px] p-5 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand transition-[border-color,background-color] duration-150",
-                isSelected
-                  ? "border-2 border-brand bg-brand-tint/45"
-                  : "border border-line bg-surface hover:border-line-strong",
+                'flex min-w-0 flex-col items-center justify-center gap-2 rounded-[18px] border px-2 py-2.5 text-center text-sm font-semibold leading-tight sm:flex-row sm:justify-start sm:gap-3 sm:px-3 sm:text-left sm:text-base',
+                active ? 'border-brand bg-brand-tint text-ink' : 'border-line bg-surface text-ink-2 hover:bg-brand-tint',
               )}
             >
-              <Pill tone="gold">Contoh rekaan</Pill>
-              <p className="mt-3 text-xs font-semibold leading-snug text-brand-deep">
-                {item.kategori}
-              </p>
-              <p className="mt-2 text-base font-semibold text-ink">
-                {item.judul}
-              </p>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-2">
-                {item.ringkasanSingkat}
-              </p>
+              {choice && (
+                <Image
+                  src={`/contoh-foto/${choice.file}`}
+                  alt=""
+                  width={1080}
+                  height={1440}
+                  sizes="48px"
+                  className="size-11 rounded-xl object-cover sm:size-12"
+                />
+              )}
+              <span className="flex-1">{choice?.name ?? item.label.namaProduk}</span>
+              {active && <Icon name="check" size={18} className="hidden shrink-0 text-brand sm:block" />}
             </button>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        <aside className="panel space-y-5 p-5 sm:p-6 lg:col-span-4 lg:self-start">
-          <div className="record-heading">
-            <div className="min-w-0">
-              <Pill tone="gold">Data rekaan, bukan produk nyata</Pill>
-              <h2 className="type-h2 mt-2 text-ink">{activeCase.judul}</h2>
-            </div>
-          </div>
-
-          <div className="rounded-[18px] border border-line bg-paper p-4">
-            <p className="type-eyebrow text-xs">Tulisan di kemasan</p>
-            <dl className="mt-2 divide-y divide-line text-sm">
-              {labelFields.map((field) => (
-                <div key={field.label} className="py-2.5 first:pt-0 last:pb-0">
-                  <dt className="text-xs font-semibold text-ink-3">
-                    {field.label}
-                  </dt>
-                  <dd className="mt-0.5 break-words text-ink">
-                    {field.value.trim() ? (
-                      field.value
-                    ) : (
-                      <span className="text-ink-3">(tidak ada)</span>
-                    )}
-                  </dd>
-                </div>
-              ))}
-              <div className="py-2.5 last:pb-0">
-                <dt className="text-xs font-semibold text-ink-3">
-                  Pernyataan lain (klaim)
-                </dt>
-                <dd className="mt-0.5 break-words text-ink">
-                  {activeCase.label.pernyataanLain.length > 0 ? (
-                    <ul className="list-disc space-y-0.5 pl-4">
-                      {activeCase.label.pernyataanLain.map((klaim) => (
-                        <li key={klaim}>{klaim}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <span className="text-ink-3">(tidak ada)</span>
-                  )}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          <dl className="divide-y divide-line text-sm">
-            <div className="py-3 first:pt-0">
-              <dt className="mb-2 text-xs font-semibold text-ink-3">
-                Resep (takaran terbanyak)
-              </dt>
-              <dd className="space-y-1.5">
-                {sortedRecipe.map((r) => (
-                  <LedgerRow
-                    key={r.nama}
-                    label={r.nama}
-                    value={`${r.jumlahGram} g`}
-                    className="text-xs text-ink"
-                  />
-                ))}
-              </dd>
-            </div>
-            <div className="py-3 last:pb-0">
-              <dt className="mb-2 text-xs font-semibold text-ink-3">
-                Jawaban pertanyaan tambahan
-              </dt>
-              <dd className="space-y-1.5">
-                {ADDITIONAL_QUESTIONS.filter(
-                  (question) => question.id !== "resep",
-                ).map((question) => (
-                  <LedgerRow
-                    key={question.id}
-                    label={question.judul}
-                    value={describeAnswer(question.id, activeCase)}
-                    className="text-xs text-ink"
-                  />
-                ))}
-              </dd>
-            </div>
-          </dl>
-        </aside>
-
-        <div className="min-w-0 space-y-6 lg:col-span-8">
-          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink-2">
-            <Pill tone="gold">Contoh rekaan</Pill>
-            Hasil pemeriksaan untuk {activeCase.judul}
-          </p>
-          <PermitPathView result={permitResult} />
-          <LabelReportView report={report} productTitle={activeCase.judul} />
+      <div key={sample.id} className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(14rem,0.53fr)]">
+        <div className="min-w-0 space-y-4">
+          <LabelReportView report={report} productTitle={sample.label.namaProduk} />
+          <PermitPathView result={permit} />
         </div>
-      </div>
-
-      <div className="flex flex-col items-start gap-3 rounded-[20px] border border-line bg-surface p-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="max-w-xl text-sm leading-relaxed text-ink-2">
-          Ketiga contoh di atas rekaan. Untuk produk Anda sendiri, isi atau foto
-          label di alur periksa lalu jawab lima pertanyaan singkat.
-        </p>
-        <ButtonLink href="/periksa" size="md" icon="scan">
-          Coba dengan label sendiri
-        </ButtonLink>
+        <aside className="min-w-0 space-y-4" aria-label="Kemasan dan data contoh">
+          {photo && (
+            <figure className="panel p-3.5 sm:p-4">
+              <Image
+                src={`/contoh-foto/${photo.file}`}
+                alt={`Ilustrasi label ${sample.label.namaProduk}`}
+                width={1080}
+                height={1440}
+                loading="eager"
+                sizes="(min-width: 1200px) 380px, (min-width: 768px) 35vw, 90vw"
+                className="max-h-[32rem] w-full rounded-[16px] bg-paper object-contain"
+              />
+              <figcaption className="mt-3 text-sm text-ink-2">{sample.ringkasanSingkat}</figcaption>
+            </figure>
+          )}
+          <Disclosure label="Isi label dan resep" icon="tag">
+            <SampleData sample={sample} />
+          </Disclosure>
+        </aside>
       </div>
     </div>
   );

@@ -47,11 +47,11 @@ export function BukaCetakButton({
   }
 
   return (
-    <div className="flex flex-col items-start gap-3">
-      <Button size="md" icon="printer" onClick={handleClick}>
-        {productId ? 'Label perbaikan & ringkasan' : 'Simpan lalu buka label perbaikan'}
+    <div className="min-w-0">
+      <Button variant="secondary" size="md" icon="printer" onClick={handleClick}>
+        {productId ? 'Buka draf cetak' : 'Simpan & buka draf cetak'}
       </Button>
-      <div aria-live="polite" className="w-full">
+      <div aria-live="polite" className="[&:not(:empty)]:mt-3">
         {failed && (
           <Notice tone="warning" title="Belum bisa membuka label perbaikan">
             Hasil harus disimpan ke Produk saya dulu, tetapi penyimpanan di perangkat ini menolak

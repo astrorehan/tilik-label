@@ -9,19 +9,22 @@ export function Segmented<T extends string>({
   onChange,
   options,
   className,
+  describedBy,
 }: {
   label: string;
   value: T | null;
   onChange: (value: T) => void;
   options: Array<{ value: T; title: ReactNode }>;
   className?: string;
+  describedBy?: string;
 }) {
   const name = useId();
   return (
     <div
       role="radiogroup"
       aria-label={label}
-      className={cn('flex gap-1 rounded-full bg-paper-deep p-1', className)}
+      aria-describedby={describedBy}
+      className={cn('flex flex-wrap gap-1 rounded-[18px] bg-paper-deep p-1', className)}
     >
       {options.map((option) => {
         const selected = option.value === value;
@@ -29,10 +32,10 @@ export function Segmented<T extends string>({
           <label
             key={option.value}
             className={cn(
-              'flex min-h-10 flex-1 cursor-pointer items-center justify-center rounded-full px-3 text-center text-sm font-semibold transition-[background-color,box-shadow,color] duration-150',
+              'flex min-h-11 min-w-max flex-1 cursor-pointer items-center justify-center rounded-[14px] border border-transparent px-3 text-center text-sm font-semibold transition-[background-color,border-color,box-shadow,color] duration-150',
               'has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-brand',
               selected
-                ? 'bg-surface text-ink shadow-[0_1px_3px_rgb(11_37_69/0.14)]'
+                ? 'border-brand/50 bg-surface text-ink shadow-hairline'
                 : 'text-ink-2 hover:text-ink',
             )}
           >

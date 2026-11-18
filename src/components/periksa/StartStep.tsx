@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Icon, type IconName } from '@/components/icons/icon';
+import { Icon } from '@/components/icons/icon';
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
 import { Notice } from '@/components/ui/surface';
 import {
   ACCEPTED_IMAGE_TYPES,
@@ -15,54 +16,15 @@ import { ImageCheck } from './ImageCheck';
 import { PhotoGuide } from './PhotoGuide';
 import { SamplePhotos, samplePhotoUrl, type SamplePhoto } from './SamplePhotos';
 
-type Mode = 'pilih' | 'kamera';
-
 interface StartStepProps {
   image: PreparedImage | null;
   onImage: (image: PreparedImage | null) => void;
-  /** Lanjut ke isian label (dengan atau tanpa gambar). */
   onContinue: () => void;
-  /** Pintu "belum punya label": langsung ke isian kosong. */
   onWithoutLabel: () => void;
-  /** Membaca isi label dari gambar lewat server. */
-  onRead?: () => void;
-  reading?: boolean;
+  onRead: () => void;
+  reading: boolean;
 }
 
-function DoorButton({
-  icon,
-  title,
-  body,
-  onClick,
-  disabled,
-}: {
-  icon: IconName;
-  title: string;
-  body: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex w-full items-start gap-4 rounded-[20px] border border-line bg-surface p-5 text-left transition-[border-color,background-color] duration-150 hover:border-brand hover:bg-brand-tint/40 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-line disabled:hover:bg-surface"
-    >
-      <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand-deep">
-        <Icon name={icon} size={24} />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-base font-semibold text-ink">{title}</span>
-        <span className="mt-1 block text-sm leading-snug text-ink-2">
-          {body}
-        </span>
-      </span>
-    </button>
-  );
-}
-
-/** Langkah awal F-02: kamera, unggah berkas, atau tanpa label. */
 export function StartStep({
   image,
   onImage,
@@ -71,24 +33,23 @@ export function StartStep({
   onRead,
   reading,
 }: StartStepProps) {
-  const [mode, setMode] = useState<Mode>('pilih');
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const regionRef = useRef<HTMLDivElement>(null);
-  const firstRender = useRef(true);
+  const panel = image ? 'preview' : cameraOpen ? 'camera' : 'choose';
+  const previousPanel = useRef(panel);
 
-  // Setelah berpindah antara pilihan dan kamera, fokus ikut pindah ke area yang baru.
   useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
+    if (previousPanel.current !== panel) {
+      previousPanel.current = panel;
+      regionRef.current?.focus();
     }
-    regionRef.current?.focus();
-  }, [mode]);
+  }, [panel]);
 
   const openFilePicker = () => {
-    setMode('pilih');
+    setCameraOpen(false);
     fileRef.current?.click();
   };
 
@@ -98,18 +59,11 @@ export function StartStep({
     try {
       onImage(await prepareImageFile(await load()));
     } catch (caught) {
-      setError(
-        caught instanceof ImagePrepareError ? caught.message : fallbackError,
-      );
+      setError(caught instanceof ImagePrepareError ? caught.message : fallbackError);
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = '';
     }
-  };
-
-  const handleFile = (file: File | undefined) => {
-    if (!file) return;
-    void prepare(async () => file, 'Gambar gagal diolah. Coba berkas lain.');
   };
 
   const handleSample = (photo: SamplePhoto) => {
@@ -117,118 +71,107 @@ export function StartStep({
       const response = await fetch(samplePhotoUrl(photo));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.blob();
-    }, 'Foto contoh gagal dimuat. Periksa sambungan internet lalu coba lagi.');
+    }, 'Foto contoh gagal dimuat. Coba lagi atau pilih foto lain.');
   };
 
   return (
-    <div className="space-y-5">
-      <Notice tone="info" title="Ke mana gambarmu dikirim?" icon="shield">
-        Gambar dikecilkan dulu di HP-mu, lalu dikirim ke penyedia model bahasa
-        untuk dibaca isinya. Gambar tidak disimpan di server Tilik Label. Isi
-        label yang terbaca selalu ditampilkan dulu supaya bisa kamu betulkan.
-      </Notice>
-
+    <div className="space-y-4">
       <input
         ref={fileRef}
         type="file"
         accept={ACCEPTED_IMAGE_TYPES.join(',')}
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={(event) => handleFile(event.target.files?.[0])}
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void prepare(async () => file, 'Gambar gagal diolah. Coba berkas lain.');
+        }}
       />
 
-      {error && (
-        <Notice tone="danger" title="Gambar belum bisa dipakai">
-          {error}
-        </Notice>
-      )}
+      {error && <Notice tone="danger" title="Gambar belum bisa dipakai">{error}</Notice>}
+      <p role="status" className={busy ? 'text-sm font-semibold text-ink-2' : 'sr-only'}>
+        {busy ? 'Menyiapkan gambar…' : ''}
+      </p>
 
-      {busy && (
-        <p role="status" className="text-sm font-semibold text-ink-2">
-          Mengolah gambar di perangkat…
-        </p>
-      )}
-
-      {image ? (
-        <ImageCheck
-          image={image}
-          onRetake={() => {
-            onImage(null);
-            setMode('pilih');
-          }}
-          onContinue={onContinue}
-          onRead={onRead}
-          reading={reading}
-        />
-      ) : mode === 'kamera' ? (
-        <div
-          ref={regionRef}
-          tabIndex={-1}
-          role="group"
-          aria-label="Ambil foto dengan kamera"
-          className="outline-none"
-        >
+      <div
+        ref={regionRef}
+        tabIndex={-1}
+        role="group"
+        aria-label={image ? 'Pratinjau foto' : cameraOpen ? 'Kamera' : 'Cara menambahkan label'}
+        className="focus:outline-none"
+      >
+        {image ? (
+          <ImageCheck
+            image={image}
+            onRetake={() => {
+              onImage(null);
+              setCameraOpen(false);
+            }}
+            onContinue={onContinue}
+            onRead={onRead}
+            reading={reading}
+          />
+        ) : cameraOpen ? (
           <CameraCapture
             onCaptured={(captured) => {
               onImage(captured);
-              setMode('pilih');
+              setCameraOpen(false);
             }}
             onUseUpload={openFilePicker}
-            onCancel={() => setMode('pilih')}
+            onCancel={() => setCameraOpen(false)}
           />
-        </div>
-      ) : (
-        <div className="space-y-5">
-          <PhotoGuide />
-          <div
-            ref={regionRef}
-            tabIndex={-1}
-            role="group"
-            aria-label="Pilih cara memulai"
-            className="grid gap-3 outline-none"
-          >
-            <DoorButton
-              icon="camera"
-              title="Foto kemasan"
-              body="Pakai kamera HP untuk memotret label yang sudah tercetak."
-              onClick={() => {
-                setError(null);
-                setMode('kamera');
-              }}
-              disabled={busy}
-            />
-            <DoorButton
-              icon="upload"
-              title="Unggah gambar label"
-              body="Pilih foto atau desain label (JPG, PNG, atau WebP) dari galeri atau komputer."
-              onClick={openFilePicker}
-              disabled={busy}
-            />
-            <DoorButton
-              icon="edit"
-              title="Belum punya label"
-              body="Langsung isi keterangan label sendiri. Cocok bila label baru akan dibuat."
-              onClick={onWithoutLabel}
-              disabled={busy}
-            />
+        ) : (
+          <div className="panel p-3.5 sm:p-5">
+            <div className="flex flex-col items-center rounded-[18px] border border-dashed border-brand/45 bg-brand-tint/60 px-4 py-7 text-center sm:py-10">
+              <span className="mb-3 grid size-13 place-items-center rounded-[18px] bg-brand-soft text-brand-deep">
+                <Icon name="scan" size={28} />
+              </span>
+              <p id="format-foto" className="mb-4 text-sm text-ink-2">
+                Pakai foto kemasan atau desain stiker dalam format JPG, PNG, atau WebP.
+              </p>
+              <div className="flex w-full flex-col justify-center gap-2 xs:w-auto xs:flex-row">
+                <Button
+                  size="md"
+                  icon="upload"
+                  className="min-h-12 whitespace-nowrap"
+                  onClick={openFilePicker}
+                  disabled={busy}
+                  aria-describedby="format-foto"
+                >
+                  Unggah gambar
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  icon="camera"
+                  className="min-h-12 whitespace-nowrap"
+                  onClick={() => {
+                    setError(null);
+                    setCameraOpen(true);
+                  }}
+                  disabled={busy}
+                >
+                  Ambil foto
+                </Button>
+              </div>
+            </div>
+            <div className="flex justify-center pt-2">
+              <Button variant="ghost" size="md" icon="edit" onClick={onWithoutLabel} disabled={busy}>
+                Isi tanpa foto
+              </Button>
+            </div>
           </div>
-          <SamplePhotos onPick={handleSample} disabled={busy} />
-        </div>
-      )}
+        )}
+      </div>
 
-      {!image && mode === 'pilih' && (
-        <p className="text-sm text-ink-2">
-          Tidak ingin mengirim gambar?{' '}
-          <Button
-            variant="ghost"
-            size="md"
-            className="!min-h-11 !px-2 underline"
-            onClick={onWithoutLabel}
-          >
-            Isi sendiri saja
-          </Button>
-        </p>
+      {!image && !cameraOpen && (
+        <div className="grid items-start gap-2.5 sm:grid-cols-2">
+          <Disclosure label="Cara mengambil foto" icon="help">
+            <PhotoGuide />
+          </Disclosure>
+          <Disclosure label="Pakai foto contoh" icon="tag">
+            <SamplePhotos onPick={handleSample} disabled={busy} />
+          </Disclosure>
+        </div>
       )}
     </div>
   );

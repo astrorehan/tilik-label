@@ -88,19 +88,17 @@ export function CameraCapture({ onCaptured, onUseUpload, onCancel }: CameraCaptu
           ? 'Kamera tidak tersedia di perangkat ini'
           : state.pesan;
     return (
-      <Notice
-        tone="warning"
-        title={title}
-        action={
-          <Button size="md" icon="upload" onClick={onUseUpload}>
-            Unggah foto
-          </Button>
-        }
-      >
-        Tidak apa-apa. Kamu bisa memotret dengan aplikasi kamera biasa, lalu unggah fotonya di sini.
-        {state.kind === 'ditolak' &&
-          ' Bila ingin memakai kamera langsung, izinkan kamera untuk situs ini di pengaturan peramban.'}
-      </Notice>
+      <div className="panel space-y-4 p-4 sm:p-6">
+        <div role="status">
+          <Notice tone="warning" title={title}>
+            Ambil foto lewat aplikasi kamera di perangkatmu, lalu unggah di sini.
+          </Notice>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button icon="upload" onClick={onUseUpload}>Unggah gambar</Button>
+          <Button variant="secondary" onClick={onCancel}>Kembali</Button>
+        </div>
+      </div>
     );
   }
 

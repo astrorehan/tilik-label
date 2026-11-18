@@ -159,7 +159,7 @@ export function RuleAssistant({
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
       >
-        {open ? 'Tutup asisten' : `Tanya tentang ${ruleId}`}
+        {open ? 'Tutup asisten' : 'Tanya tentang temuan ini'}
       </Button>
       {open && (
         <div className="mt-2">

@@ -28,7 +28,7 @@ export function LogoMark({
         fill="currentColor"
         d="M5 9.5A4.5 4.5 0 0 1 9.5 5h12.2a4.5 4.5 0 0 1 3.18 1.32l6.8 6.8a4.5 4.5 0 0 1 0 6.36l-6.8 6.8A4.5 4.5 0 0 1 21.7 31H9.5A4.5 4.5 0 0 1 5 26.5V9.5Z"
       />
-      <circle cx="23.5" cy="18" r="3.4" fill="var(--color-gold)" />
+      <circle cx="23.5" cy="18" r="3.4" fill="var(--color-action)" />
       <path
         d="M10.5 14h6.5M10.5 18h5M10.5 22h7.5"
         stroke="var(--color-surface)"
@@ -47,9 +47,9 @@ export function Logo({
   className?: string;
 }) {
   return (
-    <span className={cn('inline-flex items-center gap-2.5', TONE_CLASS[tone], className)}>
+    <span className={cn('inline-flex items-center gap-1.5 sm:gap-2', TONE_CLASS[tone], className)}>
       <LogoMark tone={tone} className="h-7 w-7 shrink-0" />
-      <span className="font-label text-[1.25rem] font-bold leading-none tracking-[-0.03em]">
+      <span className="font-label text-lg font-bold leading-none tracking-[-0.04em] sm:text-xl">
         Tilik Label
       </span>
     </span>

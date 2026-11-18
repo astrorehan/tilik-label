@@ -1,16 +1,12 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
+import { Icon } from '@/components/icons/icon';
 import { Segmented } from '@/components/ui/choices';
+import { Disclosure } from '@/components/ui/disclosure';
 import { TextField } from '@/components/ui/fields';
-import { Pill } from '@/components/ui/surface';
 import { ADDITIONAL_QUESTIONS, isQuestionAnswered, parseAmountInput } from '@/domain';
-import type {
-  AdditionalAnswers,
-  AdditionalQuestion,
-  AdditionalQuestionId,
-  ProductionEquipment,
-} from '@/domain';
+import type { AdditionalAnswers, AdditionalQuestionId, ProductionEquipment } from '@/domain';
 import { RecipeEditor } from './RecipeEditor';
 
 type YesNo = 'ya' | 'tidak';
@@ -20,64 +16,28 @@ function toYesNo(value: boolean | null | undefined): YesNo | null {
   return value ? 'ya' : 'tidak';
 }
 
-function QuestionCard({
-  question,
-  number,
-  answered,
-  children,
-}: {
-  question: AdditionalQuestion;
-  number: number;
-  answered: boolean;
-  children: ReactNode;
-}) {
-  const headingId = `tanya-${question.id}-judul`;
-  const helpId = `tanya-${question.id}-bantuan`;
-  return (
-    <section aria-labelledby={headingId} className="rule-row">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-baseline gap-2.5">
-          <span className="type-code text-xs font-semibold text-ink-3">{number}/5</span>
-          <h3 id={headingId} className="type-h3 text-ink">
-            {question.judul}
-          </h3>
-        </div>
-        <Pill tone={answered ? 'success' : 'neutral'} dot={answered}>
-          {answered ? 'Terjawab' : 'Belum dijawab'}
-        </Pill>
-      </div>
-      <p className="mt-2 text-base text-ink">{question.pertanyaan}</p>
-      <p id={helpId} className="mt-1 text-sm leading-snug text-ink-2">
-        {question.bantuan}
-      </p>
-      <div className="mt-3.5">{children}</div>
-      <p className="mt-2.5 text-xs font-medium text-ink-3">
-        Dipakai untuk: {question.dipakaiUntuk.join(', ')}
-      </p>
-    </section>
-  );
-}
+const QUESTIONS = ADDITIONAL_QUESTIONS.slice(1).concat(ADDITIONAL_QUESTIONS.slice(0, 1));
 
-interface QuestionsStepProps {
+export function QuestionsStep({
+  answers,
+  onChange,
+}: {
   answers: AdditionalAnswers;
   onChange: (next: AdditionalAnswers) => void;
-}
-
-/** Lima pertanyaan tambahan F-04 tentang hal yang tidak terlihat di foto. */
-export function QuestionsStep({ answers, onChange }: QuestionsStepProps) {
+}) {
   const [umurText, setUmurText] = useState(() =>
     answers.umurSimpanHari ? String(answers.umurSimpanHari) : '',
   );
   const umurInvalid = umurText.trim() !== '' && parseAmountInput(umurText) === null;
 
-  const renderInput = (id: AdditionalQuestionId) => {
+  const renderInput = (id: AdditionalQuestionId, hintId: string) => {
     switch (id) {
       case 'resep':
         return (
           <RecipeEditor
             value={answers.resep}
             onChange={(resep) => onChange({ ...answers, resep })}
-            describedBy="tanya-resep-bantuan"
+            describedBy={hintId}
           />
         );
       case 'umurSimpan':
@@ -86,48 +46,51 @@ export function QuestionsStep({ answers, onChange }: QuestionsStepProps) {
             id="tanya-umurSimpan"
             label="Umur simpan dalam hari"
             className="max-w-[16rem] [&_label]:sr-only"
-            type="text"
             inputMode="numeric"
             suffix="hari"
             value={umurText}
             error={umurInvalid ? 'Isi dengan angka, misalnya 30.' : undefined}
+            aria-describedby={umurInvalid ? `${hintId} tanya-umurSimpan-note` : hintId}
             onChange={(event) => {
               setUmurText(event.target.value);
               onChange({ ...answers, umurSimpanHari: parseAmountInput(event.target.value) });
             }}
-            placeholder="Contoh: 30"
+            placeholder="30"
           />
         );
       case 'caraSimpan':
         return (
           <Segmented<YesNo>
-            label="Apakah umur simpan bergantung pada cara simpan?"
+            label="Apakah perlu cara simpan khusus?"
+            describedBy={hintId}
             value={toYesNo(answers.bergantungCaraSimpan)}
             onChange={(value) => onChange({ ...answers, bergantungCaraSimpan: value === 'ya' })}
             options={[
-              { value: 'ya', title: 'Ya, perlu cara khusus' },
+              { value: 'ya', title: 'Ya' },
               { value: 'tidak', title: 'Tidak' },
             ]}
-            className="max-w-md"
+            className="max-w-xs"
           />
         );
       case 'sertifikatHalal':
         return (
           <Segmented<YesNo>
             label="Apakah sudah punya sertifikat halal?"
+            describedBy={hintId}
             value={toYesNo(answers.punyaSertifikatHalal)}
             onChange={(value) => onChange({ ...answers, punyaSertifikatHalal: value === 'ya' })}
             options={[
               { value: 'ya', title: 'Sudah punya' },
               { value: 'tidak', title: 'Belum punya' },
             ]}
-            className="max-w-md"
+            className="max-w-xs"
           />
         );
       case 'alatProduksi':
         return (
           <Segmented<ProductionEquipment>
             label="Alat produksi"
+            describedBy={hintId}
             value={answers.alatProduksi ?? null}
             onChange={(value) => onChange({ ...answers, alatProduksi: value })}
             options={[
@@ -142,17 +105,34 @@ export function QuestionsStep({ answers, onChange }: QuestionsStepProps) {
   };
 
   return (
-    <div className="panel overflow-hidden">
-      {ADDITIONAL_QUESTIONS.map((question, index) => (
-        <QuestionCard
-          key={question.id}
-          question={question}
-          number={index + 1}
-          answered={isQuestionAnswered(question.id, answers)}
-        >
-          {renderInput(question.id)}
-        </QuestionCard>
-      ))}
+    <div className="space-y-2.5">
+      {QUESTIONS.map((question, index) => {
+        const hintId = `tanya-${question.id}-bantuan`;
+        return (
+          <Disclosure
+            key={question.id}
+            name="data-produk"
+            open={index === 0}
+            label={
+              <>
+                <span>{question.judul}</span>
+                {isQuestionAnswered(question.id, answers) && (
+                  <>
+                    <Icon name="check" size={17} className="shrink-0 text-success-ink" />
+                    <span className="sr-only">Terjawab</span>
+                  </>
+                )}
+              </>
+            }
+          >
+            <p className="font-medium text-ink">{question.pertanyaan}</p>
+            <p id={hintId} className="mt-1.5 mb-4 text-sm leading-relaxed text-ink-2">
+              {question.bantuan}
+            </p>
+            {renderInput(question.id, hintId)}
+          </Disclosure>
+        );
+      })}
     </div>
   );
 }

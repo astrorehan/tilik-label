@@ -1,17 +1,14 @@
-'use client';
-
 import { cn } from '@/lib/cn';
 
 export type FlowStep = 'mulai' | 'isi' | 'tanya' | 'hasil';
 
-const STEPS: Array<{ id: FlowStep; label: string }> = [
-  { id: 'mulai', label: 'Mulai' },
+const STEPS: { id: FlowStep; label: string }[] = [
+  { id: 'mulai', label: 'Tambah label' },
   { id: 'isi', label: 'Isi label' },
-  { id: 'tanya', label: 'Pertanyaan' },
+  { id: 'tanya', label: 'Data produk' },
   { id: 'hasil', label: 'Hasil' },
 ];
 
-/** Penanda langkah alur periksa. Setiap langkah bisa dibuka kembali. */
 export function StepIndicator({
   current,
   onSelect,
@@ -20,32 +17,29 @@ export function StepIndicator({
   onSelect: (step: FlowStep) => void;
 }) {
   const currentIndex = STEPS.findIndex((step) => step.id === current);
+
   return (
-    <nav aria-label="Langkah pemeriksaan">
-      <ol className="grid grid-cols-4 gap-1 rounded-full bg-paper-deep p-1">
+    <nav aria-label={`Pemeriksaan, langkah ${currentIndex + 1} dari ${STEPS.length}`}>
+      <ol className="grid grid-cols-4 gap-2 sm:gap-3">
         {STEPS.map((step, index) => {
           const active = step.id === current;
           const done = index < currentIndex;
+          const className = cn(
+            'flex min-h-11 w-full flex-col gap-2 rounded-lg text-left text-xs leading-tight before:h-[3px] before:w-full before:rounded-full sm:text-sm',
+            active && 'font-bold text-ink before:bg-brand',
+            done && 'font-semibold text-brand-deep before:bg-brand-soft hover:underline hover:before:bg-brand',
+            !active && !done && 'text-ink-3 before:bg-line',
+          );
+
           return (
-            <li key={step.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(step.id)}
-                aria-current={active ? 'step' : undefined}
-                className={cn(
-                  'flex min-h-11 w-full flex-col items-center justify-center rounded-full px-1 text-[0.8125rem] leading-tight font-semibold transition-colors sm:flex-row sm:gap-1.5 sm:text-sm',
-                  active
-                    ? 'bg-surface text-ink shadow-[0_1px_3px_rgb(11_37_69/0.14)]'
-                    : done
-                      ? 'text-brand-deep hover:bg-surface/60'
-                      : 'text-ink-2 hover:bg-surface/60 hover:text-ink',
-                )}
-              >
-                <span className="type-code text-xs" aria-hidden>
-                  {index + 1}
-                </span>
-                {step.label}
-              </button>
+            <li key={step.id} aria-current={active ? 'step' : undefined}>
+              {done ? (
+                <button type="button" className={className} onClick={() => onSelect(step.id)}>
+                  {step.label}
+                </button>
+              ) : (
+                <span className={className}>{step.label}</span>
+              )}
             </li>
           );
         })}

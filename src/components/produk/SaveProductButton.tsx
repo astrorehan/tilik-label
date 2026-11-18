@@ -49,12 +49,12 @@ export function SaveProductButton({ label, answers, productId, onSaved }: SavePr
   }
 
   return (
-    <div className="flex flex-col items-start gap-3">
+    <div className="min-w-0">
       <Button variant="secondary" size="md" icon="download" onClick={handleSave}>
         Simpan ke Produk saya
       </Button>
 
-      <div aria-live="polite" className="w-full">
+      <div aria-live="polite" className="[&:not(:empty)]:mt-3">
         {state.kind === 'saved' && (
           <Notice tone="success" title={
               <span className="break-words [overflow-wrap:anywhere]">
