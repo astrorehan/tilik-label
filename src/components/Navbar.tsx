@@ -2,132 +2,157 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Logo } from '@/components/brand/logo';
 import { Icon } from '@/components/icons/icon';
-import { Button, ButtonLink } from '@/components/ui/button';
-import { cn } from '@/lib/cn';
 
 const NAV_LINKS = [
-  { href: '/', label: 'Beranda' },
-  { href: '/contoh', label: 'Contoh juri' },
-  { href: '/periksa', label: 'Periksa label' },
+  { href: '/contoh', label: 'Contoh hasil' },
   { href: '/produk', label: 'Produk saya' },
-  { href: '/aturan', label: 'Aturan' },
+  { href: '/nilai-gizi', label: 'Nilai gizi' },
+  { href: '/aturan', label: 'Aturan label' },
 ];
 
-function subscribeToScroll(onChange: () => void) {
-  window.addEventListener('scroll', onChange, { passive: true });
-  return () => window.removeEventListener('scroll', onChange);
-}
+// Lewat dari jarak gulir ini, bilah atas berubah jadi pil putih yang melayang.
+const SCROLL_THRESHOLD = 24;
 
-function useScrolledPast(offset: number) {
-  return useSyncExternalStore(
-    subscribeToScroll,
-    () => window.scrollY > offset,
-    () => false,
+// Tiap huruf diberi jaraknya dari tengah kata, jadi saat disorot huruf membesar
+// mulai dari tengah lalu merambat ke kedua ujung bersamaan.
+function Letters({ text }: { text: string }) {
+  const middle = (text.length - 1) / 2;
+  return (
+    <span className="topbar-letters" aria-hidden="true">
+      {[...text].map((ch, i) => (
+        <span key={i} className="topbar-ch" style={{ '--d': Math.abs(i - middle) } as CSSProperties}>
+          {ch === ' ' ? ' ' : ch}
+        </span>
+      ))}
+    </span>
   );
 }
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
-  const scrolled = useScrolledPast(20);
+
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      setScrolled(window.scrollY > SCROLL_THRESHOLD);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !headerRef.current?.contains(event.target)) setMenuOpen(false);
+    };
+    const desktop = window.matchMedia('(min-width: 64rem)');
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    desktop.addEventListener('change', closeOnDesktop);
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside);
+      desktop.removeEventListener('change', closeOnDesktop);
+    };
+  }, [menuOpen]);
 
   return (
     <header
-      className={cn(
-        'sticky top-0 z-30 transition-[background-color,box-shadow,border-color] duration-200',
-        scrolled
-          ? 'border-b border-line bg-surface/90 backdrop-blur-md'
-          : 'border-b border-transparent bg-surface',
-      )}
+      ref={headerRef}
+      id="site-header"
+      className="topbar"
+      data-scrolled={scrolled || menuOpen ? '' : undefined}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && menuOpen) {
+          setMenuOpen(false);
+          toggleRef.current?.focus({ preventScroll: true });
+        }
+      }}
     >
-      <div className="mx-auto flex h-16 max-w-[84rem] items-center justify-between gap-4 px-4 sm:px-6 lg:h-[4.75rem] lg:px-8">
-        <Link href="/" className="-ml-1 shrink-0 p-1" aria-label="Tilik Label, beranda">
-          <Logo />
-        </Link>
+      <div className="topbar-frame">
+        <div className="topbar-shell">
+          <Link href="/" className="topbar-logo" aria-label="Tilik Label, beranda" onClick={() => setMenuOpen(false)}>
+            <Logo />
+          </Link>
 
-        <nav aria-label="Navigasi utama" className="hidden items-center gap-1 md:flex">
-          {NAV_LINKS.map((link) => {
-            const active = pathname === link.href;
-            return (
+          {/* Kelompok tengah: saat satu tautan membesar, kelompoknya tetap di tengah,
+              jadi tautan yang disorot diam di tempat dan tetangganya bergeser. */}
+          <nav aria-label="Navigasi utama" className="topbar-links">
+            {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'inline-flex min-h-10 items-center rounded-full px-3.5 text-sm font-semibold transition-colors',
-                  active
-                    ? 'bg-brand-tint text-brand-deep'
-                    : 'text-ink-2 hover:bg-paper hover:text-ink',
-                )}
+                aria-label={link.label}
+                aria-current={pathname === link.href ? 'page' : undefined}
+                className="topbar-link"
               >
-                {link.label}
+                <Letters text={link.label} />
               </Link>
-            );
-          })}
-        </nav>
+            ))}
+          </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
-          <ButtonLink href="/periksa" size="md" icon="scan">
-            Periksa label saya
-          </ButtonLink>
+          <div className="topbar-end">
+            {pathname !== '/periksa' && (
+              <Link href="/periksa" className="topbar-cta hidden xs:inline-flex" onClick={() => setMenuOpen(false)}>
+                Periksa label
+              </Link>
+            )}
+            <button
+              type="button"
+              ref={toggleRef}
+              className="grid size-11 shrink-0 place-items-center rounded-full text-ink transition-colors hover:bg-paper-deep active:bg-paper-deep lg:hidden"
+              aria-label={menuOpen ? 'Tutup menu' : 'Buka menu'}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-nav"
+              onClick={() => setMenuOpen((prev) => !prev)}
+            >
+              <Icon name={menuOpen ? 'close' : 'menu'} size={23} key={String(menuOpen)} className="mobile-nav-icon" />
+            </button>
+          </div>
         </div>
 
-        <Button
-          variant="ghost"
-          size="md"
-          icon={menuOpen ? 'close' : 'menu'}
-          className="md:hidden"
-          aria-expanded={menuOpen}
-          aria-controls="mobile-nav"
-          onClick={() => setMenuOpen((prev) => !prev)}
-        >
-          {menuOpen ? 'Tutup' : 'Menu'}
-        </Button>
-      </div>
-
-      {menuOpen && (
         <nav
           id="mobile-nav"
           aria-label="Navigasi seluler"
-          className="border-t border-line bg-surface px-4 pb-5 pt-3 md:hidden"
+          inert={!menuOpen}
+          data-open={menuOpen ? '' : undefined}
+          className="mobile-nav space-y-1 rounded-[22px] border border-line bg-surface px-3 py-2 shadow-floating lg:hidden"
         >
-          <div className="flex flex-col gap-1">
-            {NAV_LINKS.map((link) => {
-              const active = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
-                  className={cn(
-                    'flex min-h-12 items-center justify-between rounded-[14px] px-3.5 text-base font-semibold',
-                    active
-                      ? 'bg-brand-tint text-brand-deep'
-                      : 'text-ink hover:bg-paper',
-                  )}
-                >
-                  {link.label}
-                  <Icon name="chevronRight" size={20} className="text-ink-3" />
-                </Link>
-              );
-            })}
-          </div>
-          <div className="mt-3 pt-3 border-t border-line">
-            <ButtonLink
-              href="/periksa"
-              block
-              size="lg"
-              icon="scan"
+          {pathname !== '/periksa' && (
+            <Link href="/periksa" className="nav-link flex justify-between xs:hidden" onClick={() => setMenuOpen(false)}>
+              Periksa label <Icon name="scan" size={18} />
+            </Link>
+          )}
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-current={pathname === link.href ? 'page' : undefined}
               onClick={() => setMenuOpen(false)}
+              className="nav-link flex justify-between"
             >
-              Periksa label saya
-            </ButtonLink>
-          </div>
+              {link.label}
+              <Icon name="chevronRight" size={18} />
+            </Link>
+          ))}
         </nav>
-      )}
+      </div>
     </header>
   );
 }

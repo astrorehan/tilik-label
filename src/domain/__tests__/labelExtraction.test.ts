@@ -91,6 +91,18 @@ describe('validateExtraction', () => {
     expect(result.ok && result.tidakTerbaca).toEqual(['pernyataanLain']);
   });
 
+  it('hanya menyimpan penanda tebal yang cocok dengan daftar bahan yang terbaca', () => {
+    const ingredientText = 'Komposisi: tepung terigu, gula.';
+    const raw = makeRaw({ daftarBahanTeks: { status: 'terbaca', teks: ingredientText } });
+    const formatted = 'Komposisi: **tepung terigu**, gula.';
+    const matching = validateExtraction({ ...raw, daftarBahanBerformat: formatted });
+    expect(matching.ok && matching.label.daftarBahanBerformat).toBe(formatted);
+    for (const value of ['Komposisi: **tepung terigu, gula.', 'Komposisi: **telur**, gula.', 42]) {
+      const ignored = validateExtraction({ ...raw, daftarBahanBerformat: value });
+      expect(ignored.ok && ignored.label.daftarBahanBerformat).toBeUndefined();
+    }
+  });
+
   it('menolak bukan JSON, bentuk salah, status tak dikenal, dan butir hilang', () => {
     expect(validateExtraction(undefined)).toEqual({ ok: false, alasan: 'bukan_json' });
     expect(validateExtraction([])).toEqual({ ok: false, alasan: 'skema_tidak_sesuai' });

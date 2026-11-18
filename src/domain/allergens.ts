@@ -154,3 +154,54 @@ export function detectAllergens(ingredientText: string): string[] {
 
   return found;
 }
+
+export interface IngredientPart {
+  teks: string;
+  alergen: boolean;
+}
+
+const ALLERGEN_KEYWORDS = ALLERGEN_GROUPS.flatMap((group) => group.kataKunci).sort((a, b) => b.length - a.length);
+const ALLERGEN_PATTERN = new RegExp(`(?<![a-z0-9])(?:${ALLERGEN_KEYWORDS.map(escapeRegex).join('|')})(?![a-z0-9])`, 'gi');
+
+/** Memotong teks menjadi bagian biasa dan bagian alergen dengan batas kata yang sama. */
+export function splitAllergenParts(text: string): IngredientPart[] {
+  const parts: IngredientPart[] = [];
+  let cursor = 0;
+  for (const match of text.matchAll(ALLERGEN_PATTERN)) {
+    const start = match.index;
+    if (start > cursor) parts.push({ teks: text.slice(cursor, start), alergen: false });
+    parts.push({ teks: match[0], alergen: true });
+    cursor = start + match[0].length;
+  }
+  if (cursor < text.length) parts.push({ teks: text.slice(cursor), alergen: false });
+  return parts;
+}
+
+/** Hanya pakai penanda visual jika salinannya cocok dengan daftar bahan saat ini. */
+export function validateIngredientFormatting(value: unknown, ingredientText: string): string | undefined {
+  if (typeof value !== 'string' || value.length > 3000) return;
+  const formatted = value.trim().replace(/\s+/g, ' ');
+  if (!formatted) return;
+  const parts = formatted.split('**');
+  if (parts.length % 2 === 0 || parts.some((part, index) => index % 2 === 1 && !part.trim())) return;
+  if (parts.join('') === ingredientText.trim().replace(/\s+/g, ' ')) return formatted;
+}
+
+export function findUnboldAllergens(formatted: string): string[] {
+  const parts = formatted.split('**');
+  const bold: { start: number; end: number }[] = [];
+  let cursor = 0;
+  parts.forEach((part, index) => {
+    if (index % 2 === 1) bold.push({ start: cursor, end: cursor + part.length });
+    cursor += part.length;
+  });
+
+  cursor = 0;
+  const unbold: string[] = [];
+  for (const part of splitAllergenParts(parts.join(''))) {
+    const end = cursor + part.teks.length;
+    if (part.alergen && !bold.some((span) => span.start <= cursor && span.end >= end)) unbold.push(part.teks);
+    cursor = end;
+  }
+  return [...new Set(unbold)];
+}

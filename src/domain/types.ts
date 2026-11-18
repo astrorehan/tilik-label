@@ -80,6 +80,8 @@ export interface LabelData {
   pernyataanLain: string[];
   /** Daftar field yang ditandai tidak terbaca saat ekstraksi foto awal. */
   unreadableFields?: LabelFieldKey[];
+  /** Salinan daftar bahan yang sama, dengan **penanda tebal** bila terbaca dari foto. */
+  daftarBahanBerformat?: string;
 }
 
 /** Satu bahan beserta takaran (gram/ml) dari resep produksi sekali buat. */

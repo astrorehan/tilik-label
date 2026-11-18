@@ -1,4 +1,5 @@
-import { detectAllergens } from './allergens';
+import { detectAllergens, findUnboldAllergens, validateIngredientFormatting } from './allergens';
+import { MENYEHATKAN_CLAIM_PATTERN, declaredIngredientOrder, declaredShelfLife } from './labelEvidence';
 import { LABEL_RULE_METADATA } from './regulations';
 import type {
   AdditionalAnswers,
@@ -98,7 +99,7 @@ const ALLOWED_NEGATIVE_BTP_RULES: Array<{
 ];
 
 const HEALTH_CLAIM_PATTERNS = [
-  /\bmenyehatkan\b/i,
+  MENYEHATKAN_CLAIM_PATTERN,
   /\bmengobati\b/i,
   /\bmenyembuhkan\b/i,
   /\bobat\b/i,
@@ -182,21 +183,28 @@ function parseIngredientTokens(daftarBahanTeks: string): string[] {
     .filter(Boolean);
 }
 
-function hasFullDate(text: string): boolean {
-  const numericFull = /\b(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}|\d{4}[\/.\-]\d{1,2}[\/.\-]\d{1,2})\b/;
-  const namedFull =
-    /\b\d{1,2}[\s\-]+(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember|jan|feb|mar|apr|agu|ags|agt|sep|okt|nov|des)[\s\-]+\d{2,4}\b/i;
-  return numericFull.test(text) || namedFull.test(text);
+const MONTHS = ['jan(?:uari)?', 'feb(?:ruari)?', 'mar(?:et)?', 'apr(?:il)?', 'mei', 'jun(?:i)?', 'jul(?:i)?', 'agu(?:stus)?|ags|agt', 'sep(?:tember)?', 'okt(?:ober)?', 'nov(?:ember)?', 'des(?:ember)?'];
+const MONTH_PATTERN = MONTHS.join('|');
+const NAMED_DATE = new RegExp(`\\b(\\d{1,2})[\\s-]+(${MONTH_PATTERN})[\\s-]+(\\d{4}|\\d{2})\\b`, 'i');
+const NAMED_MONTH_YEAR = new RegExp(`\\b(?:${MONTH_PATTERN})[\\s/-]+(?:\\d{4}|\\d{2})\\b`, 'i');
+
+function validCalendarDate(day: number, month: number, rawYear: string): boolean {
+  const year = Number(rawYear) + (rawYear.length === 2 ? 2000 : 0);
+  if (year < 100 || month < 1 || month > 12 || day < 1) return false;
+  return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
-function hasMonthYear(text: string): boolean {
-  if (hasFullDate(text)) {
-    return true;
+function expirationPrecision(text: string): 'full' | 'month' | null {
+  const ymd = text.match(/\b(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})\b/);
+  if (ymd) return validCalendarDate(Number(ymd[3]), Number(ymd[2]), ymd[1]!) ? 'full' : null;
+  const dmy = text.match(/\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})\b/);
+  if (dmy) return validCalendarDate(Number(dmy[1]), Number(dmy[2]), dmy[3]!) ? 'full' : null;
+  const named = text.match(NAMED_DATE);
+  if (named) {
+    const month = MONTHS.findIndex((pattern) => new RegExp(`^(?:${pattern})$`, 'i').test(named[2]!)) + 1;
+    return validCalendarDate(Number(named[1]), month, named[3]!) ? 'full' : null;
   }
-  const numericMY = /\b(0?[1-9]|1[0-2])[\/.\-]\d{2,4}\b/;
-  const namedMY =
-    /\b(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember|jan|feb|mar|apr|agu|ags|agt|sep|okt|nov|des)[\s\-\/]+\d{2,4}\b/i;
-  return numericMY.test(text) || namedMY.test(text);
+  return /\b(0?[1-9]|1[0-2])[/.-](?:\d{4}|\d{2})\b/.test(text) || NAMED_MONTH_YEAR.test(text) ? 'month' : null;
 }
 
 function containsAnyKeyword(haystack: string, keywords: string[]): string | undefined {
@@ -264,11 +272,19 @@ function checkL03(label: LabelData, answers: AdditionalAnswers): LabelRuleResult
     );
   }
 
+  const declared = declaredIngredientOrder(stripIngredientPrefix(label.daftarBahanTeks));
+  if (declared?.reversed.length) {
+    const [lighter, heavier] = declared.reversed;
+    return makeResult('L-03', 'kurang', `Persentase di label menempatkan "${lighter}" sebelum "${heavier}" yang lebih banyak.`, {
+      saranPerbaikan: 'Cocokkan persentase dengan resep, lalu susun daftar bahan dari takaran terbanyak.',
+    });
+  }
+  const fromLabel = declared && makeResult('L-03', 'lengkap', 'Persentase lengkap pada label sudah diurutkan dari yang terbesar.');
   const validRecipe = answers.resep.filter(
     (item) => item.nama.trim().length > 0 && Number.isFinite(item.jumlahGram) && item.jumlahGram > 0,
   );
   if (validRecipe.length < 2) {
-    return makeResult(
+    return fromLabel ?? makeResult(
       'L-03',
       'tidak_bisa_dicek',
       'Takaran resep minimal dua bahan utama belum diisi untuk membandingkan urutan terbanyak.',
@@ -291,7 +307,7 @@ function checkL03(label: LabelData, answers: AdditionalAnswers): LabelRuleResult
   }
 
   if (matchedPositions.length < 2) {
-    return makeResult(
+    return fromLabel ?? makeResult(
       'L-03',
       'tidak_bisa_dicek',
       'Nama bahan di resep belum cukup cocok dengan teks daftar bahan pada label.',
@@ -570,7 +586,8 @@ function checkL09(label: LabelData): LabelRuleResult {
 }
 
 function checkL10(label: LabelData, answers: AdditionalAnswers): LabelRuleResult {
-  if (isUnreadable(label, 'kedaluwarsaTeks') || !label.kedaluwarsaTeks.trim()) {
+  const raw = label.kedaluwarsaTeks.trim();
+  if (isUnreadable(label, 'kedaluwarsaTeks') || !raw) {
     return makeResult(
       'L-10',
       'tidak_bisa_dicek',
@@ -578,48 +595,44 @@ function checkL10(label: LabelData, answers: AdditionalAnswers): LabelRuleResult
     );
   }
 
-  if (answers.umurSimpanHari === null) {
+  const precision = expirationPrecision(raw);
+  if (precision === 'full') {
+    return makeResult('L-10', 'lengkap', 'Format kedaluwarsa sudah memuat tanggal, bulan, dan tahun lengkap.');
+  }
+  if (!precision && /\b(lihat|tertera|tercantum)\b/i.test(raw)) {
+    return makeResult('L-10', 'tidak_bisa_dicek', 'Label merujuk bagian lain kemasan. Periksa atau foto lokasi tempat tanggal kedaluwarsa tercetak.');
+  }
+  if (!precision) {
+    return makeResult('L-10', 'kurang', 'Keterangan kedaluwarsa belum memuat bulan dan tahun yang valid.', {
+      saranPerbaikan: 'Cantumkan tanggal, bulan, dan tahun kedaluwarsa yang berlaku untuk produk ini.',
+      contohBenar: 'Baik digunakan sebelum: 25 Nov 2026',
+    });
+  }
+
+  const shelfLife = answers.umurSimpanHari ?? declaredShelfLife(label);
+  if (shelfLife === null) {
     return makeResult(
       'L-10',
       'tidak_bisa_dicek',
-      'Perkiraan umur simpan belum diisi untuk menentukan kelengkapan tanggal kedaluwarsa.',
+      'Kedaluwarsa hanya memuat bulan dan tahun. Umur simpan diperlukan untuk memastikan format ini sesuai.',
       { saranPerbaikan: 'Isi umur simpan produk (dalam hari) pada pertanyaan tambahan.' },
     );
   }
 
-  const raw = label.kedaluwarsaTeks.trim();
-  if (answers.umurSimpanHari <= 90) {
-    if (!hasFullDate(raw)) {
-      return makeResult(
-        'L-10',
-        'kurang',
-        `Untuk umur simpan ${answers.umurSimpanHari} hari (sampai 3 bulan), kedaluwarsa wajib memuat tanggal, bulan, dan tahun lengkap.`,
-        {
-          saranPerbaikan: 'Tulis tanggal, bulan, dan tahun secara lengkap.',
-          contohBenar: 'Baik digunakan sebelum: 25 Nov 2026',
-        },
-      );
-    }
-    return makeResult(
-      'L-10',
-      'lengkap',
-      'Format kedaluwarsa sudah memuat tanggal, bulan, dan tahun lengkap.',
-    );
-  }
-
-  if (!hasMonthYear(raw)) {
+  const source = answers.umurSimpanHari == null ? ' menurut label' : '';
+  if (shelfLife <= 90) {
     return makeResult(
       'L-10',
       'kurang',
-      'Untuk umur simpan lebih dari 3 bulan, kedaluwarsa minimal memuat bulan dan tahun.',
+      `Untuk umur simpan ${shelfLife} hari${source} (sampai 3 bulan), kedaluwarsa wajib memuat tanggal, bulan, dan tahun lengkap.`,
       {
-        saranPerbaikan: 'Lengkapi keterangan kedaluwarsa minimal dengan bulan dan tahun.',
-        contohBenar: 'Baik digunakan sebelum: Nov 2027',
+        saranPerbaikan: 'Tulis tanggal, bulan, dan tahun secara lengkap.',
+        contohBenar: 'Baik digunakan sebelum: 25 Nov 2026',
       },
     );
   }
 
-  return makeResult('L-10', 'lengkap', 'Format bulan dan tahun kedaluwarsa sudah sesuai umur simpan.');
+  return makeResult('L-10', 'lengkap', `Format bulan dan tahun kedaluwarsa sesuai umur simpan lebih dari 3 bulan${source}.`);
 }
 
 function checkL11(label: LabelData): LabelRuleResult {
@@ -699,23 +712,26 @@ function checkL12(
   );
 }
 
-function checkL13(detectedAllergens: string[]): LabelRuleResult {
-  if (detectedAllergens.length > 0) {
-    return makeResult(
-      'L-13',
-      'tidak_bisa_dicek',
-      `Ketebalan huruf tidak dapat dipastikan dari foto/teks polos. Pastikan bahan terkait (${detectedAllergens.join(', ')}) dicetak tebal pada daftar bahan.`,
-      {
-        saranPerbaikan: 'Periksa berkas desain cetak agar setiap bahan alergen memakai huruf tebal (bold).',
-        contohBenar: 'Komposisi: **tepung terigu**, gula pasir, **telur**, minyak nabati.',
-      },
-    );
+function checkL13(label: LabelData, detectedAllergens: string[]): LabelRuleResult {
+  if (isUnreadable(label, 'daftarBahanTeks') || !stripIngredientPrefix(label.daftarBahanTeks)) {
+    return makeResult('L-13', 'tidak_bisa_dicek', 'Daftar bahan belum terbaca atau belum diisi.');
+  }
+  if (detectedAllergens.length === 0) {
+    return makeResult('L-13', 'lengkap', 'Tidak ada bahan alergen yang terdeteksi untuk dicetak tebal.');
+  }
+  const formatting = validateIngredientFormatting(label.daftarBahanBerformat, label.daftarBahanTeks);
+  if (formatting) {
+    const unbold = findUnboldAllergens(formatting);
+    if (unbold.length === 0) return makeResult('L-13', 'lengkap', 'Semua bahan alergen terdeteksi terlihat dicetak tebal.');
+    return makeResult('L-13', 'kurang', `Bahan alergen yang belum tercetak tebal: ${unbold.join(', ')}.`, {
+      saranPerbaikan: 'Cetak tebal nama bahan alergen di daftar bahan.',
+    });
   }
 
   return makeResult(
     'L-13',
     'tidak_bisa_dicek',
-    'Ketebalan cetak alergen tidak bisa dicek dari foto. Pastikan jika ada bahan turunan alergen, namanya dicetak tebal.',
+    `Ketebalan huruf belum terlihat jelas. Pastikan nama bahan alergen (${detectedAllergens.join(', ')}) dicetak tebal pada daftar bahan.`,
   );
 }
 
@@ -751,7 +767,7 @@ function checkL15(label: LabelData): LabelRuleResult {
     }
   }
 
-  if (isUnreadable(label, 'pernyataanLain')) {
+  if (isUnreadable(label, 'namaProduk', 'pernyataanLain')) {
     return makeResult(
       'L-15',
       'tidak_bisa_dicek',
@@ -766,9 +782,10 @@ function checkL16(label: LabelData, answers: AdditionalAnswers): LabelRuleResult
   const claimText = collectClaimTexts(label);
   const negativeMatches = claimText.match(
     /\b(tanpa|bebas|tidak menggunakan|non)[\s-]+([a-z]+(?:\s+[a-z]+)?)/gi,
-  );
+  ) ?? [];
+  const unreadable = isUnreadable(label, 'namaProduk', 'pernyataanLain');
 
-  if (!negativeMatches?.length) {
+  if (!negativeMatches.length && !unreadable) {
     return makeResult('L-16', 'lengkap', 'Tidak ada klaim negatif bahan tambahan pangan.');
   }
 
@@ -776,6 +793,7 @@ function checkL16(label: LabelData, answers: AdditionalAnswers): LabelRuleResult
     label.daftarBahanTeks,
     ...answers.resep.map((item) => item.nama),
   ].join(' ');
+  let pending: LabelRuleResult | undefined;
 
   for (const rawPhrase of negativeMatches) {
     if (GENERAL_FREE_BTP_PATTERN.test(rawPhrase)) {
@@ -819,7 +837,7 @@ function checkL16(label: LabelData, answers: AdditionalAnswers): LabelRuleResult
     }
 
     if (answers.resep.length === 0) {
-      return makeResult(
+      pending ??= makeResult(
         'L-16',
         'tidak_bisa_dicek',
         `Klaim "${rawPhrase}" hanya sah bila seluruh bahan di resep benar-benar tidak mengandung ${matchedCategory.keyword}.`,
@@ -828,6 +846,8 @@ function checkL16(label: LabelData, answers: AdditionalAnswers): LabelRuleResult
     }
   }
 
+  if (unreadable) return makeResult('L-16', 'tidak_bisa_dicek', 'Sebagian klaim pada label belum terbaca jelas.');
+  if (pending) return pending;
   return makeResult(
     'L-16',
     'lengkap',
@@ -851,7 +871,7 @@ function checkL17(label: LabelData): LabelRuleResult {
     );
   }
 
-  if (isUnreadable(label, 'pernyataanLain')) {
+  if (isUnreadable(label, 'namaProduk', 'pernyataanLain')) {
     return makeResult(
       'L-17',
       'tidak_bisa_dicek',
@@ -867,6 +887,9 @@ function checkL18(label: LabelData, answers: AdditionalAnswers): LabelRuleResult
   const matches = claimText.match(NATURAL_CLAIM_PATTERN);
 
   if (!matches?.length) {
+    if (isUnreadable(label, 'namaProduk', 'pernyataanLain')) {
+      return makeResult('L-18', 'tidak_bisa_dicek', 'Sebagian klaim pada label belum terbaca jelas.');
+    }
     return makeResult(
       'L-18',
       'lengkap',
@@ -1068,7 +1091,7 @@ export function evaluateLabelRules(
     checkL10(label, answers),
     checkL11(label),
     checkL12(label, detectedAllergens),
-    checkL13(detectedAllergens),
+    checkL13(label, detectedAllergens),
     checkL14(),
     checkL15(label),
     checkL16(label, answers),

@@ -1,8 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { useState, type ReactNode } from 'react';
+import { Button, type ButtonVariant } from '@/components/ui/button';
 import { Notice } from '@/components/ui/surface';
 import type { AdditionalAnswers, LabelData } from '@/domain';
 import { getProduct, saveProductResult } from '@/lib/produkSaya';
@@ -17,11 +17,17 @@ export function BukaCetakButton({
   answers,
   productId,
   onSaved,
+  children,
+  variant = 'secondary',
+  size = 'md',
 }: {
   label: LabelData;
   answers: AdditionalAnswers;
   productId?: string;
   onSaved: (id: string) => void;
+  children?: ReactNode;
+  variant?: ButtonVariant;
+  size?: 'md' | 'lg';
 }) {
   const router = useRouter();
   const [failed, setFailed] = useState(false);
@@ -47,11 +53,11 @@ export function BukaCetakButton({
   }
 
   return (
-    <div className="flex flex-col items-start gap-3">
-      <Button size="md" icon="printer" onClick={handleClick}>
-        {productId ? 'Label perbaikan & ringkasan' : 'Simpan lalu buka label perbaikan'}
+    <div className="min-w-0">
+      <Button variant={variant} size={size} icon="printer" onClick={handleClick}>
+        {children ?? (productId ? 'Buka draf cetak' : 'Simpan & buka draf cetak')}
       </Button>
-      <div aria-live="polite" className="w-full">
+      <div aria-live="polite" className="[&:not(:empty)]:mt-3">
         {failed && (
           <Notice tone="warning" title="Belum bisa membuka label perbaikan">
             Hasil harus disimpan ke Produk saya dulu, tetapi penyimpanan di perangkat ini menolak

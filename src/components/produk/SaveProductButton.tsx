@@ -5,19 +5,33 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/surface';
 import type { AdditionalAnswers, LabelData } from '@/domain';
-import { MAX_SAVED_PRODUCTS, saveProductResult, type SaveFailure, type SavedProduct } from '@/lib/produkSaya';
+import {
+  MAX_SAVED_PRODUCTS,
+  saveProductResult,
+  type SaveFailure,
+  type SaveResult,
+  type SavedProduct,
+} from '@/lib/produkSaya';
+
+export type ProductSaveStatus =
+  | { kind: 'idle' }
+  | { kind: 'saved'; product: SavedProduct; source: 'auto' | 'manual' }
+  | { kind: 'failed'; reason: SaveFailure };
 
 interface SaveProductButtonProps {
   label: LabelData;
   answers: AdditionalAnswers;
-  /** Isi bila produk ini dibuka dari Produk saya, supaya disimpan ulang sebagai pembaruan. */
+  /** Isi bila produk ini dibuka dari Produk saya atau sudah tersimpan otomatis, supaya disimpan ulang sebagai pembaruan. */
   productId?: string;
+  /** Status penyimpanan dari induk (mis. hasil auto-save di langkah Hasil). */
+  autoSaveStatus?: ProductSaveStatus;
+  /** Sembunyikan Notice bawaan bila induk sudah menampilkan status penyimpanan secara terpadu. */
+  hideInlineStatus?: boolean;
   onSaved?: (product: SavedProduct) => void;
+  onSaveResult?: (result: SaveResult) => void;
 }
 
-type SaveState = { kind: 'idle' } | { kind: 'saved'; product: SavedProduct } | { kind: 'failed'; reason: SaveFailure };
-
-const FAILURE_COPY: Record<SaveFailure, { title: string; body: string }> = {
+export const SAVE_FAILURE_COPY: Record<SaveFailure, { title: string; body: string }> = {
   tidak_tersedia: {
     title: 'Data tidak bisa disimpan di peramban ini',
     body: 'Penyimpanan di perangkat sedang tidak bisa dipakai. Ini biasa terjadi di mode privat atau bila penyimpanan situs diblokir. Hasil pemeriksaan tetap bisa dilihat dan dicetak, tetapi tidak akan masuk ke Produk saya.',
@@ -32,48 +46,71 @@ const FAILURE_COPY: Record<SaveFailure, { title: string; body: string }> = {
   },
 };
 
-export function SaveProductButton({ label, answers, productId, onSaved }: SaveProductButtonProps) {
-  const [state, setState] = useState<SaveState>({ kind: 'idle' });
+export function SaveProductButton({
+  label,
+  answers,
+  productId,
+  autoSaveStatus,
+  hideInlineStatus = false,
+  onSaved,
+  onSaveResult,
+}: SaveProductButtonProps) {
+  const [localState, setLocalState] = useState<ProductSaveStatus>({ kind: 'idle' });
   // Setelah tersimpan, klik berikutnya memperbarui produk yang sama, bukan membuat salinan.
   const [savedId, setSavedId] = useState<string | undefined>(productId);
+  const effectiveProductId = productId ?? savedId;
+  const activeState = localState.kind !== 'idle' ? localState : (autoSaveStatus ?? localState);
+  const alreadySaved = Boolean(effectiveProductId) || activeState.kind === 'saved';
 
   function handleSave() {
-    const result = saveProductResult({ id: savedId ?? productId, label, answers });
+    const result = saveProductResult({ id: effectiveProductId, label, answers });
+    onSaveResult?.(result);
     if (result.ok) {
       setSavedId(result.product.id);
-      setState({ kind: 'saved', product: result.product });
+      setLocalState({ kind: 'saved', product: result.product, source: 'manual' });
       onSaved?.(result.product);
     } else {
-      setState({ kind: 'failed', reason: result.reason });
+      setLocalState({ kind: 'failed', reason: result.reason });
     }
   }
 
   return (
-    <div className="flex flex-col items-start gap-3">
-      <Button variant="secondary" size="md" icon="download" onClick={handleSave}>
-        Simpan ke Produk saya
+    <div className="min-w-0">
+      <Button
+        variant="secondary"
+        size="md"
+        icon={alreadySaved ? 'savedOnDevice' : 'download'}
+        onClick={handleSave}
+      >
+        {alreadySaved ? 'Perbarui di Produk saya' : 'Simpan ke Produk saya'}
       </Button>
 
-      <div aria-live="polite" className="w-full">
-        {state.kind === 'saved' && (
-          <Notice tone="success" title={
-              <span className="break-words [overflow-wrap:anywhere]">
-                &quot;{state.product.nama}&quot; tersimpan di perangkat ini
-              </span>
-            }
-          >
-            <Link href="/produk" className="font-semibold text-brand-deep underline underline-offset-2">
-              Lihat di Produk saya
-            </Link>
-            . Data hanya ada di perangkat ini dan hilang bila data peramban dihapus.
-          </Notice>
-        )}
-        {state.kind === 'failed' && (
-          <Notice tone="warning" title={FAILURE_COPY[state.reason].title}>
-            {FAILURE_COPY[state.reason].body}
-          </Notice>
-        )}
-      </div>
+      {!hideInlineStatus && (
+        <div aria-live="polite" className="[&:not(:empty)]:mt-3">
+          {activeState.kind === 'saved' && (
+            <Notice
+              tone="success"
+              title={
+                <span className="break-words [overflow-wrap:anywhere]">
+                  {activeState.source === 'auto'
+                    ? `"${activeState.product.nama}" tersimpan otomatis di perangkat ini`
+                    : `"${activeState.product.nama}" tersimpan di perangkat ini`}
+                </span>
+              }
+            >
+              <Link href="/produk" className="font-semibold text-brand-deep underline underline-offset-2">
+                Lihat di Produk saya
+              </Link>
+              . Data hanya ada di peramban ini dan hilang bila data peramban dihapus.
+            </Notice>
+          )}
+          {activeState.kind === 'failed' && (
+            <Notice tone="warning" title={SAVE_FAILURE_COPY[activeState.reason].title}>
+              {SAVE_FAILURE_COPY[activeState.reason].body}
+            </Notice>
+          )}
+        </div>
+      )}
     </div>
   );
 }

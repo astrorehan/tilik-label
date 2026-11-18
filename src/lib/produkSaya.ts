@@ -9,6 +9,7 @@ import {
   type ProductionEquipment,
   type RecipeIngredient,
 } from '@/domain';
+import { validateIngredientFormatting } from '@/domain/allergens';
 import { getSafeStorage, readJson, readRaw, writeJson, type StorageLike } from './safeStorage';
 
 /** Kunci penyimpanan; angka versi dinaikkan bila bentuk data berubah. */
@@ -73,7 +74,7 @@ function isIsoDate(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && !Number.isNaN(Date.parse(value));
 }
 
-function parseLabel(raw: unknown): LabelData | null {
+export function parseLabel(raw: unknown): LabelData | null {
   if (!isRecord(raw)) return null;
   const label: Record<string, unknown> = {};
   // Bidang teks yang hilang atau salah tipe diisi kosong supaya produk tetap terbuka.
@@ -91,6 +92,8 @@ function parseLabel(raw: unknown): LabelData | null {
       ? (unreadable.filter((k) => typeof k === 'string' && FIELD_KEYS.includes(k)) as LabelFieldKey[])
       : [];
   }
+  const formatting = validateIngredientFormatting(raw.daftarBahanBerformat, String(label.daftarBahanTeks));
+  if (formatting) label.daftarBahanBerformat = formatting;
   return label as unknown as LabelData;
 }
 
@@ -100,7 +103,7 @@ function nullableBoolean(value: unknown): boolean | null | undefined {
   return typeof value === 'boolean' ? value : undefined;
 }
 
-function parseAnswers(raw: unknown): AdditionalAnswers | null {
+export function parseAnswers(raw: unknown): AdditionalAnswers | null {
   if (!isRecord(raw) || !Array.isArray(raw.resep)) return null;
 
   const resep: RecipeIngredient[] = [];
@@ -246,6 +249,17 @@ export function upsertProduct(
 
 export function removeProduct(list: readonly SavedProduct[], id: string): SavedProduct[] {
   return list.filter((item) => item.id !== id);
+}
+
+/** True bila isi label dan jawaban sama persis, supaya tidak menulis ulang tanpa perubahan. */
+export function isSameProductData(
+  a: Pick<ProductInput, 'label' | 'answers'>,
+  b: Pick<ProductInput, 'label' | 'answers'>,
+): boolean {
+  return (
+    JSON.stringify(a.label) === JSON.stringify(b.label) &&
+    JSON.stringify(a.answers) === JSON.stringify(b.answers)
+  );
 }
 
 /** Menghitung ulang status dengan aturan terbaru dari masukan mentah. */

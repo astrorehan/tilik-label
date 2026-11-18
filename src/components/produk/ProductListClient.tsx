@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Icon } from '@/components/icons/icon';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Card, Notice, Pill } from '@/components/ui/surface';
 import {
-  MAX_SAVED_PRODUCTS,
   STORAGE_UNAVAILABLE_SNAPSHOT,
   deleteProduct,
   getProductsSnapshot,
@@ -44,8 +44,8 @@ export function ProductListClient() {
     const target = pendingFocus.current;
     pendingFocus.current = null;
     if (!target) return;
-    if (target.kind === 'judul') headingRef.current?.focus();
-    else document.getElementById(hapusButtonId(target.id))?.focus();
+    if (target.kind === 'judul') headingRef.current?.focus({ preventScroll: true });
+    else document.getElementById(hapusButtonId(target.id))?.focus({ preventScroll: true });
   }, [focusTick]);
 
   const loading = snapshot === LOADING_SNAPSHOT;
@@ -70,12 +70,6 @@ export function ProductListClient() {
 
   return (
     <div className="space-y-6">
-      <Notice tone="info" title="Data hanya ada di perangkat ini">
-        Produk saya disimpan di peramban perangkat ini saja, tidak ada akun dan tidak dikirim ke
-        server. Data akan hilang bila data peramban dihapus, dan tidak muncul di HP atau laptop lain.
-        Cetak atau simpan hasil sebagai PDF bila perlu salinan.
-      </Notice>
-
       <h2 ref={headingRef} tabIndex={-1} className="sr-only focus:outline-none">
         Daftar produk saya
       </h2>
@@ -104,12 +98,12 @@ export function ProductListClient() {
       )}
 
       {!loading && !unavailable && products.length === 0 && (
-        <Card className="flex flex-col items-start gap-4 p-6 sm:p-8">
+        <Card className="flex flex-col items-center gap-4 p-6 text-center sm:p-10">
+          <span className="icon-tile"><Icon name="savedOnDevice" size={22} /></span>
           <div className="max-w-xl">
             <h2 className="type-h3 text-ink">Belum ada produk tersimpan</h2>
-            <p className="mt-2 text-base leading-relaxed text-ink-2">
-              Periksa label produkmu, lalu pilih &quot;Simpan ke Produk saya&quot; di halaman hasil.
-              Produk yang tersimpan bisa dibuka lagi dan dibetulkan kapan saja.
+            <p className="mt-2 text-sm text-ink-2">
+              Periksa label, lalu simpan hasilnya agar bisa dibuka kembali di sini.
             </p>
           </div>
           <ButtonLink href="/periksa" size="md" icon="scan">
@@ -120,9 +114,10 @@ export function ProductListClient() {
 
       {products.length > 0 && (
         <>
-          <p className="text-sm text-ink-2">
-            {products.length} dari maksimal {MAX_SAVED_PRODUCTS} produk
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-ink-2">{products.length} produk tersimpan</p>
+            <ButtonLink href="/periksa" size="md" icon="plus">Periksa label baru</ButtonLink>
+          </div>
           <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {products.map((product) => (
               <li key={product.id} className="min-w-0">
@@ -136,6 +131,7 @@ export function ProductListClient() {
               </li>
             ))}
           </ul>
+          <p className="text-sm text-ink-2">Produk tersimpan di peramban ini dan terhapus jika data situs dibersihkan.</p>
         </>
       )}
     </div>
@@ -174,14 +170,14 @@ function ProductCard({
       <div className="flex flex-wrap gap-2">
         {kurang === 0 ? (
           <Pill tone="success" icon="check">
-            Siap cetak
+            Tidak ada temuan kurang
           </Pill>
         ) : (
           <Pill tone="danger" icon="warning">
-            {kurang} butir kurang
+            {kurang} perlu diperbaiki
           </Pill>
         )}
-        {tidakBisaDicek > 0 && <Pill tone="neutral">{tidakBisaDicek} tidak bisa dicek</Pill>}
+        {tidakBisaDicek > 0 && <Pill tone="neutral">{tidakBisaDicek} perlu dicek lagi</Pill>}
       </div>
 
       <p className="text-sm leading-snug text-ink-2">

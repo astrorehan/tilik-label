@@ -131,6 +131,14 @@ describe('evaluateLabelRules — L-01 sampai L-10', () => {
     expect(result.status).toBe('tidak_bisa_dicek');
   });
 
+  it('L-03 menilai persentase jumlah bahan utama yang tercantum di label', () => {
+    const tanpaResep = makeValidAnswers({ resep: [] });
+    expect(getRule('L-03', makeValidLabel({ daftarBahanTeks: 'Komposisi: pisang 75,5%, gula (24,5%).' }), tanpaResep).status).toBe('lengkap');
+    expect(getRule('L-03', makeValidLabel({ daftarBahanTeks: 'Komposisi: gula 24,5%, garam, pisang (75,5%).' }), tanpaResep).status).toBe('kurang');
+    expect(getRule('L-03', makeValidLabel({ daftarBahanTeks: 'Komposisi: adonan (gula 20%, tepung 80%), pisang.' }), tanpaResep).status).toBe('tidak_bisa_dicek');
+    expect(getRule('L-03', makeValidLabel({ daftarBahanTeks: 'Komposisi: pisang 20%; Isian: gula 80%.' }), tanpaResep).status).toBe('tidak_bisa_dicek');
+  });
+
   it('L-04: kurang bila memakai singkatan bahan, namun membolehkan singkatan dalam kurung setelah kepanjangan', () => {
     expect(
       getRule('L-04', makeValidLabel({ daftarBahanTeks: 'Komposisi: singkong, MSG, tep. terigu.' }))
@@ -253,7 +261,7 @@ describe('evaluateLabelRules — L-11 sampai L-20', () => {
     expect(result.penjelasan).toContain('Telur');
   });
 
-  it('L-13 dan L-14: selalu tidak_bisa_dicek sebagai pengingat sebelum cetak', () => {
+  it('L-13 tanpa informasi cetak tebal dan L-14 tanpa skala fisik perlu diperiksa', () => {
     expect(getRule('L-13', makeValidLabel()).status).toBe('tidak_bisa_dicek');
     expect(getRule('L-14', makeValidLabel()).status).toBe('tidak_bisa_dicek');
   });

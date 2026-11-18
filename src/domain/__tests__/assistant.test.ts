@@ -4,6 +4,7 @@ import {
   buildLockedContext,
   buildReferenceMaterial,
   findUnknownArticles,
+  formatAssistantAnswer,
   isKnownRuleId,
   resolveQuestion,
   sanitizeCheckInput,
@@ -63,6 +64,33 @@ describe('resolveQuestion', () => {
 
   it('kode pertanyaan tak dikenal ditolak', () => {
     expect(resolveQuestion({ pertanyaanId: 'resep' as never })).toBeNull();
+  });
+});
+
+describe('formatAssistantAnswer', () => {
+  it('memisahkan kalimat inti, poin, langkah bernomor, dan contoh', () => {
+    const text = [
+      'Tulis daftar bahan berdasarkan takaran.',
+      '- Urutkan dari yang terbanyak.',
+      '• Gunakan nama lengkap.',
+      '2) Tulis pembukanya.',
+      '3. Masukkan daftar bahan.',
+      'Contoh: Komposisi: gula, tepung, garam.',
+    ].join('\r\n');
+
+    expect(formatAssistantAnswer(text)).toEqual([
+      { type: 'paragraph', text: 'Tulis daftar bahan berdasarkan takaran.' },
+      { type: 'bullets', items: ['Urutkan dari yang terbanyak.', 'Gunakan nama lengkap.'] },
+      { type: 'numbered', start: 2, items: ['Tulis pembukanya.', 'Masukkan daftar bahan.'] },
+      { type: 'example', text: 'Komposisi: gula, tepung, garam.' },
+    ]);
+  });
+
+  it('membaca contoh di baris berikutnya dan mempertahankan angka di teks biasa', () => {
+    expect(formatAssistantAnswer('1.500 g adalah berat bersih.\n\nContoh penulisan:\nBerat bersih 1.500 g')).toEqual([
+      { type: 'paragraph', text: '1.500 g adalah berat bersih.' },
+      { type: 'example', text: 'Berat bersih 1.500 g' },
+    ]);
   });
 });
 

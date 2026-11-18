@@ -18,12 +18,12 @@ export default async function CetakPage({
   const produkId = typeof produk === 'string' && produk.length > 0 ? produk : undefined;
 
   return (
-    <div className="cetak-root min-h-[100dvh] bg-paper text-ink">
+    <div className="cetak-root flex min-h-dvh flex-col">
       <Navbar />
 
       <main
         id="main-content"
-        className="mx-auto max-w-[60rem] space-y-10 px-4 py-8 sm:px-6 lg:px-8 lg:py-12"
+        className="page-shell max-w-[60rem] flex-1 space-y-8 py-5 sm:py-8"
       >
         <CetakClient produkId={produkId} />
       </main>

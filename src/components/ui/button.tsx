@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from 'react';
+import type { ComponentProps, ComponentPropsWithRef, ReactNode } from 'react';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { cn } from '@/lib/cn';
 
@@ -24,14 +24,14 @@ interface ButtonLookProps {
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    'bg-brand text-white [--icon-signal:var(--color-gold)] hover:bg-brand-deep disabled:bg-paper-deep disabled:text-ink-3 disabled:shadow-none disabled:[--icon-signal:currentColor] disabled:border disabled:border-line',
+    'bg-action text-ink hover:bg-action-hover disabled:bg-paper-deep disabled:text-ink-3 disabled:shadow-none',
   secondary:
     'bg-surface text-ink border border-line hover:border-line-strong hover:bg-paper disabled:border-line disabled:text-ink-3 disabled:bg-paper',
   quiet:
     'bg-surface text-ink border border-line hover:border-line-strong hover:bg-paper disabled:text-ink-3 disabled:border-line',
   ghost: 'bg-transparent text-ink hover:bg-paper-deep disabled:text-ink-3',
   accent:
-    'bg-ink text-white [--icon-signal:var(--color-gold)] hover:bg-[#163761] disabled:bg-paper-deep disabled:text-ink-3',
+    'bg-ink text-surface [--icon-signal:var(--color-action)] hover:bg-ink-2 disabled:bg-paper-deep disabled:text-ink-3',
   inverted:
     'bg-white text-ink hover:bg-brand-tint [--icon-signal:var(--color-brand)]',
   danger:
@@ -77,7 +77,7 @@ function ButtonContent({
 }
 
 type ButtonProps = ButtonLookProps &
-  ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean };
+  ComponentPropsWithRef<'button'> & { busy?: boolean };
 
 export function Button({
   variant,

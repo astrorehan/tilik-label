@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { LatarParallax } from '@/components/LatarParallax';
+import { ScrollThumb } from '@/components/ScrollThumb';
 import { bodyFont, displayFont, monoFont } from './fonts';
 import './globals.css';
 
@@ -13,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0b2545',
+  themeColor: '#f6f6ee',
   width: 'device-width',
   initialScale: 1,
 };
@@ -32,6 +34,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Lewati ke isi halaman
         </a>
         {children}
+        <ScrollThumb />
+        <LatarParallax />
       </body>
     </html>
   );

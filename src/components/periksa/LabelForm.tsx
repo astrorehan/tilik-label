@@ -1,8 +1,10 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type CSSProperties } from 'react';
+import { Disclosure } from '@/components/ui/disclosure';
 import { TextArea, TextField } from '@/components/ui/fields';
-import type { LabelData, LabelFieldKey } from '@/domain';
+import { containsValidDate, type LabelData, type LabelFieldKey } from '@/domain';
+import { updateLabelField } from '@/domain/labelEvidence';
 
 type TextFieldKey = Exclude<LabelFieldKey, 'pernyataanLain'>;
 
@@ -11,122 +13,163 @@ interface FieldConfig {
   label: string;
   placeholder: string;
   multiline?: boolean;
+  requiredForPrint?: boolean;
 }
 
-/** Urutan isian mengikuti urutan butir wajib label. */
-export const LABEL_FIELD_GROUPS: FieldConfig[][] = [
-  [{ key: 'namaProduk', label: 'Nama jenis pangan', placeholder: 'Contoh: Keripik Pisang Manis' }],
+const PRODUCT_FIELDS: FieldConfig[][] = [
+  [{ key: 'namaProduk', label: 'Nama jenis pangan', placeholder: 'Keripik Pisang Manis', requiredForPrint: true }],
   [
     {
       key: 'daftarBahanTeks',
       label: 'Daftar bahan (komposisi)',
-      placeholder: 'Contoh: Komposisi: pisang kepok, minyak kelapa sawit, gula pasir, garam.',
+      placeholder: 'Pisang kepok, minyak kelapa sawit, gula pasir, garam',
       multiline: true,
+      requiredForPrint: true,
     },
   ],
   [
-    { key: 'beratBersihTeks', label: 'Berat atau isi bersih', placeholder: 'Contoh: Berat bersih: 150 g' },
-    { key: 'nomorIzinTeks', label: 'Nomor izin (P-IRT)', placeholder: 'Contoh: P-IRT 2053273010123-29' },
+    { key: 'beratBersihTeks', label: 'Berat atau isi bersih', placeholder: '150 g', requiredForPrint: true },
+    { key: 'nomorIzinTeks', label: 'Nomor izin', placeholder: 'P-IRT 2053273010123-29', requiredForPrint: true },
   ],
-  [{ key: 'namaProdusen', label: 'Nama produsen', placeholder: 'Contoh: Dapur Bu Rina' }],
+];
+
+const PRODUCTION_FIELDS: FieldConfig[][] = [
+  [{ key: 'namaProdusen', label: 'Nama produsen', placeholder: 'Dapur Bu Rina', requiredForPrint: true }],
+  [{ key: 'alamatProdusen', label: 'Alamat produsen', placeholder: 'Jl. Melati 12, Kota Bandung 40115', requiredForPrint: true }],
   [
-    {
-      key: 'alamatProdusen',
-      label: 'Alamat produsen',
-      placeholder: 'Contoh: Jl. Melati 12, Kota Bandung 40115, Indonesia',
-    },
+    { key: 'kodeProduksiTeks', label: 'Kode produksi', placeholder: 'B01-131126', requiredForPrint: true },
+    { key: 'tanggalProduksiTeks', label: 'Tanggal produksi', placeholder: '13 Nov 2026' },
   ],
-  [
-    { key: 'kodeProduksiTeks', label: 'Kode produksi', placeholder: 'Contoh: B01-131126' },
-    { key: 'tanggalProduksiTeks', label: 'Tanggal produksi', placeholder: 'Contoh: 13 Nov 2026' },
-  ],
-  [
-    {
-      key: 'kedaluwarsaTeks',
-      label: 'Keterangan kedaluwarsa',
-      placeholder: 'Contoh: Baik digunakan sebelum: 13 Des 2026',
-    },
-  ],
+  [{
+    key: 'kedaluwarsaTeks',
+    label: 'Keterangan kedaluwarsa',
+    placeholder: 'Baik digunakan sebelum 13 Des 2026',
+    requiredForPrint: true,
+  }],
+];
+
+const EXTRA_FIELDS: FieldConfig[][] = [
   [
     {
       key: 'pernyataanAlergenTeks',
       label: 'Pernyataan alergen',
-      placeholder: 'Contoh: Mengandung alergen, lihat daftar bahan yang dicetak tebal.',
+      placeholder: 'Mengandung alergen, lihat daftar bahan yang dicetak tebal.',
     },
   ],
   [
-    { key: 'keteranganHalalTeks', label: 'Keterangan halal di label', placeholder: 'Kosongkan bila tidak ada' },
-    { key: 'caraPenyimpananTeks', label: 'Cara penyimpanan', placeholder: 'Contoh: Simpan di tempat kering' },
+    { key: 'keteranganHalalTeks', label: 'Keterangan halal di label', placeholder: 'Halal Indonesia' },
+    { key: 'caraPenyimpananTeks', label: 'Cara penyimpanan', placeholder: 'Simpan di tempat kering' },
   ],
 ];
 
-interface LabelFormProps {
+const UNREADABLE_STYLE = 'rounded-[16px] border-2 border-warning bg-warning-tint p-3';
+const UNREADABLE_NOTE = (
+  <span className="font-semibold text-warning-ink">Tidak terbaca. Cocokkan dengan label.</span>
+);
+
+export function LabelForm({
+  value,
+  onChange,
+  showExtras,
+  reveal,
+}: {
   value: LabelData;
   onChange: (next: LabelData) => void;
-  /** Catatan tambahan per isian, misalnya penanda "tidak terbaca" dari pembaca foto. */
-  renderFieldNote?: (key: LabelFieldKey) => ReactNode;
-}
+  showExtras: boolean;
+  /** Kolom yang baru diisi dari hasil baca: muncul berurutan dan berpendar sebentar. */
+  reveal?: ReadonlySet<LabelFieldKey>;
+}) {
+  const [extrasInitiallyOpen] = useState(() =>
+    showExtras ||
+    EXTRA_FIELDS.flat().some(({ key }) => value[key].trim() || value.unreadableFields?.includes(key)) ||
+    value.pernyataanLain.some((claim) => claim.trim()) ||
+    value.unreadableFields?.includes('pernyataanLain'),
+  );
 
-export function LabelForm({ value, onChange, renderFieldNote }: LabelFormProps) {
-  const setField = (key: TextFieldKey, text: string) => {
-    const unreadable = value.unreadableFields?.filter((field) => field !== key);
-    onChange({ ...value, [key]: text, ...(unreadable ? { unreadableFields: unreadable } : {}) });
-  };
+  const setField = (key: LabelFieldKey, text: string) => onChange(updateLabelField(value, key, text));
 
-  const setClaims = (text: string) => {
-    const unreadable = value.unreadableFields?.filter((field) => field !== 'pernyataanLain');
-    onChange({
-      ...value,
-      pernyataanLain: text.split('\n'),
-      ...(unreadable ? { unreadableFields: unreadable } : {}),
-    });
+  const needsProductionDate = !containsValidDate(value.kodeProduksiTeks);
+  // Urutan kemunculan dihitung saat render; nilainya hanya dipakai untuk jeda animasi.
+  let revealOrder = 0;
+  const revealProps = (key: LabelFieldKey, unreadable?: boolean) => {
+    if (!reveal) return { className: undefined, style: undefined };
+    const order = revealOrder++;
+    return {
+      className: reveal.has(key) && !unreadable ? 'field-baru' : 'enter',
+      style: { '--i': order } as CSSProperties,
+    };
   };
+  const unreadableClaims = value.unreadableFields?.includes('pernyataanLain');
+
+  const renderGroups = (groups: FieldConfig[][]) =>
+    groups.map((group) => (
+      <div
+        key={group.map(({ key }) => key).join('-')}
+        className={group.length > 1 ? 'grid gap-4 sm:grid-cols-2' : undefined}
+      >
+        {group.map((field) => {
+          const Field = field.multiline ? TextArea : TextField;
+          const unreadable = value.unreadableFields?.includes(field.key);
+          const required = field.requiredForPrint || (field.key === 'tanggalProduksiTeks' && needsProductionDate);
+          const fieldHint = field.key === 'tanggalProduksiTeks'
+            ? 'Isi jika tanggal belum tercantum dalam kode produksi.'
+            : field.key === 'caraPenyimpananTeks'
+              ? 'Wajib untuk cetak bila produk perlu cara simpan khusus. Jika tidak, jawab Tidak di Data produk.'
+              : undefined;
+          const motion = revealProps(field.key, unreadable);
+          return (
+            <div key={field.key} className={motion.className} style={motion.style}>
+              <Field
+                id={`isian-${field.key}`}
+                label={
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {field.label}
+                    {required && (
+                      <span className="rounded-full bg-brand-tint px-2 py-0.5 text-xs text-brand-deep">
+                        Wajib untuk cetak
+                      </span>
+                    )}
+                  </span>
+                }
+                className={unreadable ? UNREADABLE_STYLE : undefined}
+                hint={unreadable ? <>{UNREADABLE_NOTE}{fieldHint && ` ${fieldHint}`}</> : fieldHint}
+                value={value[field.key]}
+                onChange={(event) => setField(field.key, event.target.value)}
+                placeholder={field.placeholder}
+              />
+            </div>
+          );
+        })}
+      </div>
+    ));
 
   return (
     <div className="space-y-4">
-      {LABEL_FIELD_GROUPS.map((group) => (
-        <div
-          key={group.map((field) => field.key).join('-')}
-          className={group.length > 1 ? 'grid grid-cols-1 gap-4 sm:grid-cols-2' : undefined}
-        >
-          {group.map((field) => {
-            const note = renderFieldNote?.(field.key);
-            return field.multiline ? (
-              <TextArea
-                key={field.key}
-                id={`isian-${field.key}`}
-                label={field.label}
-                hint={note}
-                rows={3}
-                value={value[field.key]}
-                onChange={(event) => setField(field.key, event.target.value)}
-                placeholder={field.placeholder}
-              />
-            ) : (
-              <TextField
-                key={field.key}
-                id={`isian-${field.key}`}
-                label={field.label}
-                hint={note}
-                type="text"
-                value={value[field.key]}
-                onChange={(event) => setField(field.key, event.target.value)}
-                placeholder={field.placeholder}
-              />
-            );
-          })}
+      <section aria-labelledby="isian-produk-judul" className="panel space-y-4 p-4 sm:p-6">
+        <h2 id="isian-produk-judul" tabIndex={-1} className="type-h3 focus:outline-none">Produk dan komposisi</h2>
+        <p className="text-sm text-ink-2">
+          Kamu bisa lanjut memeriksa dengan isian kosong. Lengkapi butir bertanda wajib sebelum mencetak stiker.
+        </p>
+        {renderGroups(PRODUCT_FIELDS)}
+      </section>
+      <section aria-labelledby="isian-produksi-judul" className="panel space-y-4 p-4 sm:p-6">
+        <h2 id="isian-produksi-judul" className="type-h3">Produsen dan tanggal</h2>
+        {renderGroups(PRODUCTION_FIELDS)}
+      </section>
+      <Disclosure label="Alergen, halal, cara simpan, dan klaim" open={extrasInitiallyOpen}>
+        <div className="space-y-4">
+          {renderGroups(EXTRA_FIELDS)}
+          <TextArea
+            id="isian-pernyataanLain"
+            label="Klaim atau tulisan lain"
+            className={unreadableClaims ? UNREADABLE_STYLE : undefined}
+            hint={unreadableClaims ? UNREADABLE_NOTE : 'Tulis satu klaim per baris.'}
+            value={value.pernyataanLain.join('\n')}
+            onChange={(event) => setField('pernyataanLain', event.target.value)}
+            placeholder="Tanpa pengawet"
+          />
         </div>
-      ))}
-
-      <TextArea
-        id="isian-pernyataanLain"
-        label="Klaim atau tulisan lain di kemasan"
-        hint={renderFieldNote?.('pernyataanLain') ?? 'Satu tulisan per baris, misalnya "Tanpa pengawet".'}
-        rows={3}
-        value={value.pernyataanLain.join('\n')}
-        onChange={(event) => setClaims(event.target.value)}
-        placeholder={'Contoh:\nTanpa pengawet\nRenyah dan gurih'}
-      />
+      </Disclosure>
     </div>
   );
 }

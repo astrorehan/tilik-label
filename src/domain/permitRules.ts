@@ -1,4 +1,5 @@
 import { PERMIT_RULE_METADATA } from './regulations';
+import { MENYEHATKAN_CLAIM_PATTERN, declaredShelfLife } from './labelEvidence';
 import type {
   AdditionalAnswers,
   LabelData,
@@ -19,7 +20,7 @@ export const PERMIT_SHELF_LIFE_EXEMPT_DAYS = 7;
  * sehingga ditangani aturan label L-16, bukan di sini.
  */
 const CLAIM_PATTERNS: RegExp[] = [
-  /\bmenyehatkan\b/i,
+  MENYEHATKAN_CLAIM_PATTERN,
   /\bmengobati\b/i,
   /\bmenyembuhkan\b/i,
   /\bobat\b/i,
@@ -64,25 +65,28 @@ function isValidShelfLife(value: number | null | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
-function checkI01(answers: AdditionalAnswers): PermitRuleResult {
-  if (!isValidShelfLife(answers.umurSimpanHari)) {
+function checkI01(label: PermitLabel, answers: AdditionalAnswers): PermitRuleResult {
+  const answered = isValidShelfLife(answers.umurSimpanHari);
+  const days = answered ? answers.umurSimpanHari : declaredShelfLife(label);
+  if (!isValidShelfLife(days)) {
     return makeRule(
       'I-01',
       'belum_dijawab',
       'Umur simpan belum diisi, jadi belum diketahui apakah produk dikecualikan dari SPP-IRT.',
     );
   }
-  if (answers.umurSimpanHari < PERMIT_SHELF_LIFE_EXEMPT_DAYS) {
+  const shelfLife = `Umur simpan ${days} hari${answered ? '' : ' menurut label'}`;
+  if (days < PERMIT_SHELF_LIFE_EXEMPT_DAYS) {
     return makeRule(
       'I-01',
       'membebaskan',
-      `Umur simpan ${answers.umurSimpanHari} hari, kurang dari 7 hari. Produk seperti ini tidak wajib SPP-IRT.`,
+      `${shelfLife}, kurang dari 7 hari. Produk seperti ini tidak wajib SPP-IRT.`,
     );
   }
   return makeRule(
     'I-01',
     'tidak_berlaku',
-    `Umur simpan ${answers.umurSimpanHari} hari, tidak kurang dari 7 hari, jadi pengecualian ini tidak berlaku.`,
+    `${shelfLife}, tidak kurang dari 7 hari, jadi pengecualian ini tidak berlaku.`,
   );
 }
 
@@ -151,13 +155,16 @@ function checkI04(answers: AdditionalAnswers): PermitRuleResult {
   }
 }
 
-function checkI05(claims: string[]): PermitRuleResult {
+function checkI05(claims: string[], label: PermitLabel): PermitRuleResult {
   if (claims.length > 0) {
     return makeRule(
       'I-05',
       'menghalangi',
       `Label mencantumkan klaim (${claims.map((c) => `"${c}"`).join(', ')}). Produk dengan klaim tidak bisa lewat SPP-IRT.`,
     );
+  }
+  if (label.unreadableFields?.some((field) => field === 'namaProduk' || field === 'pernyataanLain')) {
+    return makeRule('I-05', 'perlu_dicek', 'Sebagian tulisan belum terbaca. Cocokkan klaim gizi atau kesehatan dengan label asli.');
   }
   return makeRule(
     'I-05',
@@ -202,7 +209,7 @@ function checkI08(): PermitRuleResult {
   return makeRule(
     'I-08',
     'perlu_dicek',
-    'Daftar jenis pangan yang boleh lewat SPP-IRT (Lampiran I) belum dibaca aplikasi. Jenis pangan ini perlu dicek ke Dinas Kesehatan.',
+    'Cocokkan jenis pangan dan cara pengolahannya dengan kriteria Lampiran I bersama Dinas Kesehatan.',
   );
 }
 
@@ -226,6 +233,8 @@ const OUTCOME_TITLES: Record<PermitPathOutcome, string> = {
   belum_bisa_ditentukan: 'Jalur izin belum bisa ditentukan',
 };
 
+type PermitLabel = Pick<LabelData, 'namaProduk' | 'pernyataanLain' | 'unreadableFields'>;
+
 /**
  * Menentukan jalur izin produksi berdasarkan aturan I-01 sampai I-08
  * (Peraturan BPOM Nomor 4 Tahun 2024). Fungsi murni tanpa jaringan.
@@ -238,16 +247,16 @@ const OUTCOME_TITLES: Record<PermitPathOutcome, string> = {
  * 5. Selain itu: bisa lewat SPP-IRT, dengan jenis pangan (I-08) perlu dicek ke Dinas Kesehatan.
  */
 export function evaluatePermitPath(
-  label: Pick<LabelData, 'namaProduk' | 'pernyataanLain'>,
+  label: PermitLabel,
   answers: AdditionalAnswers,
 ): PermitPathResult {
   const klaimTerdeteksi = detectLabelClaims(label);
   const aturan: PermitRuleResult[] = [
-    checkI01(answers),
+    checkI01(label, answers),
     checkI02(answers),
     checkI03(answers),
     checkI04(answers),
-    checkI05(klaimTerdeteksi),
+    checkI05(klaimTerdeteksi, label),
     checkI06(answers),
     checkI07(answers),
     checkI08(),
@@ -295,9 +304,13 @@ export function evaluatePermitPath(
   } else {
     hasil = 'bisa_spp_irt';
     decisive = aturan.filter((rule) => rule.dampak === 'memenuhi' || rule.id === 'I-08');
-    alasan = [
-      'Umur simpan 7 hari atau lebih, alat produksi manual atau semi otomatis, dan tidak ada klaim gizi atau kesehatan yang terdeteksi pada label.',
+    const reasons = [
+      isValidShelfLife(answers.umurSimpanHari) ? 'Umur simpan 7 hari atau lebih' : 'Umur simpan menurut label 7 hari atau lebih',
+      'alat produksi manual atau semi otomatis',
     ];
+    const claimRule = aturan.find((rule) => rule.id === 'I-05');
+    if (claimRule?.dampak === 'memenuhi') reasons.push('tidak ada klaim gizi atau kesehatan terdeteksi');
+    alasan = [`${reasons.join(', ')}.`];
     const unconfirmed = perluDicekRules.filter((rule) => rule.id !== 'I-08').length;
     if (unconfirmed > 0) {
       alasan.push(

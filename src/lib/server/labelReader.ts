@@ -65,6 +65,7 @@ export const READER_SYSTEM_PROMPT = [
   'Aturan:',
   '- Salin teks persis seperti tertulis: ejaan, singkatan, huruf besar-kecil, tanda baca, dan urutan bahan tidak boleh dibetulkan, karena kesalahan penulisan justru yang akan diperiksa.',
   '- Jangan menebak atau melengkapi tulisan yang tidak terlihat. Bila butir tidak ada di label, beri status "tidak_ada" dan teks kosong. Bila butir tampak ada tetapi buram, terpotong, atau tertutup, beri status "tidak_terbaca" dan salin bagian yang terbaca saja.',
+  '- Biarkan butir.daftarBahanTeks.teks berupa teks polos. Di daftarBahanBerformat, ulangi teks itu persis dan apit bagian yang jelas tercetak tebal dengan **. Huruf besar atau besar ukuran saja bukan tanda tebal. Jika seluruh ketebalan tulisan jelas dan tidak ada cetak tebal, ulangi teks polos. Jika ada bagian yang gayanya meragukan, isi daftarBahanBerformat dengan string kosong.',
   '- Jangan memberi pendapat, saran, atau penilaian apa pun.',
   '- Bila gambar bukan label kemasan pangan atau sama sekali tidak terbaca, isi bukanLabelPangan dengan true.',
   '',

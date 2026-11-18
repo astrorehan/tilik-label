@@ -182,6 +182,16 @@ describe('evaluateLabelRules - unreadableFields menjadi tidak_bisa_dicek', () =>
     expect(status('L-17', label)).toBe('tidak_bisa_dicek');
   });
 
+  it('L-16 menampilkan klaim yang terbukti bertentangan walau klaim pertama masih perlu resep', () => {
+    const label = makeLabel({
+      daftarBahanTeks: 'Komposisi: pisang, gula, natrium benzoat.',
+      pernyataanLain: ['Tanpa pewarna', 'Tanpa pengawet'],
+    });
+    const result = rule('L-16', label, makeAnswers({ resep: [] }));
+    expect(result.status).toBe('kurang');
+    expect(result.penjelasan).toContain('Tanpa pengawet');
+  });
+
   it('L-15 dan L-17: temuan nyata tetap kurang walau pernyataanLain ditandai tidak terbaca', () => {
     const label = makeLabel({
       pernyataanLain: ['Menyehatkan', 'Bebas BTP'],
@@ -600,8 +610,21 @@ describe('L-10 tambahan', () => {
     ).toBe('kurang');
   });
 
-  it('umur simpan belum diisi (null): tidak_bisa_dicek', () => {
-    expect(status('L-10', makeLabel(), dengan(null))).toBe('tidak_bisa_dicek');
+  it('tanggal lengkap bisa dipastikan tanpa jawaban umur simpan', () => {
+    expect(status('L-10', makeLabel(), dengan(null))).toBe('lengkap');
+    expect(status('L-10', bulanTahun, dengan(null))).toBe('tidak_bisa_dicek');
+  });
+
+  it('memakai umur simpan tertulis untuk menentukan apakah bulan dan tahun cukup', () => {
+    const label = { ...bulanTahun, pernyataanLain: ['Umur simpan: 6 bulan'] };
+    expect(status('L-10', label, dengan(null))).toBe('lengkap');
+    expect(status('L-10', label, dengan(30))).toBe('kurang');
+    expect(status('L-10', { ...label, unreadableFields: ['pernyataanLain'] }, dengan(null))).toBe('tidak_bisa_dicek');
+  });
+
+  it('membedakan tanggal mustahil dari petunjuk lokasi tanggal di kemasan', () => {
+    expect(status('L-10', makeLabel({ kedaluwarsaTeks: 'Baik digunakan sebelum: 31/02/2027' }), dengan(180))).toBe('kurang');
+    expect(status('L-10', makeLabel({ kedaluwarsaTeks: 'Baik digunakan sebelum: lihat tutup botol' }), dengan(180))).toBe('tidak_bisa_dicek');
   });
 
   it('umur simpan 0 hari diperlakukan sebagai sampai 3 bulan', () => {
@@ -776,13 +799,23 @@ describe('L-12 sampai L-14 tambahan', () => {
     expect(report.alergenTerdeteksi).toEqual(['Serealia mengandung gluten', 'Telur', 'Susu']);
   });
 
-  it('L-13: selalu tidak_bisa_dicek, pesan menyebut alergen bila ada', () => {
+  it('L-13 perlu bukti gaya bila ada alergen, dan terpenuhi bila daftar bahan tidak memuat alergen terdeteksi', () => {
     const dengan = rule('L-13', makeLabel(withEgg));
     expect(dengan.status).toBe('tidak_bisa_dicek');
     expect(dengan.penjelasan).toContain('Telur');
     const tanpa = rule('L-13', makeLabel({ daftarBahanTeks: 'Komposisi: singkong' }));
-    expect(tanpa.status).toBe('tidak_bisa_dicek');
+    expect(tanpa.status).toBe('lengkap');
     expect(tanpa.penjelasan).not.toContain('Telur');
+  });
+
+  it('L-13 memeriksa setiap kemunculan alergen pada salinan yang cocok dengan daftar bahan', () => {
+    const label = makeLabel({ daftarBahanTeks: 'Komposisi: telur, gula; adonan (tepung terigu, telur).' });
+    const complete = { ...label, daftarBahanBerformat: 'Komposisi: **telur**, gula; adonan (**tepung terigu**, **telur**).' };
+    const partial = { ...label, daftarBahanBerformat: 'Komposisi: **telur**, gula; adonan (**tepung terigu**, telur).' };
+    expect(status('L-13', complete)).toBe('lengkap');
+    expect(rule('L-13', partial)).toMatchObject({ status: 'kurang', penjelasan: expect.stringContaining('telur') });
+    expect(status('L-13', { ...complete, daftarBahanTeks: 'Komposisi: telur, gula.' })).toBe('tidak_bisa_dicek');
+    expect(status('L-13', { ...complete, unreadableFields: ['daftarBahanTeks'] })).toBe('tidak_bisa_dicek');
   });
 
   it('L-14: selalu tidak_bisa_dicek untuk label apa pun', () => {

@@ -20,7 +20,7 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-[20px]',
+        'rounded-[24px]',
         CARD_TONES[tone],
         emphasis && 'border-2 border-brand',
         className,
@@ -59,14 +59,14 @@ export function Notice({
   return (
     <div
       role={tone === 'danger' ? 'alert' : undefined}
-      className={cn('flex gap-3 rounded-[18px] border p-4 text-ink', look.box, className)}
+      className={cn('flex flex-wrap items-start gap-3 rounded-[18px] border p-4 text-ink sm:flex-nowrap', look.box, className)}
     >
       <Icon name={icon ?? look.icon} size={22} className={cn('mt-0.5 shrink-0', look.title)} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {title && <p className={cn('font-semibold leading-snug', look.title)}>{title}</p>}
         {children && <div className="text-sm leading-snug text-ink-2">{children}</div>}
       </div>
-      {action && <div className="shrink-0 self-center">{action}</div>}
+      {action && <div className="w-full shrink-0 self-center pl-[34px] sm:w-auto sm:pl-0">{action}</div>}
     </div>
   );
 }
@@ -108,52 +108,5 @@ export function Pill({
       {icon && <Icon name={icon} size={15} />}
       {children}
     </span>
-  );
-}
-
-export function LedgerRow({
-  label,
-  value,
-  strong = false,
-  muted = false,
-  className,
-}: {
-  label: ReactNode;
-  value: ReactNode;
-  strong?: boolean;
-  muted?: boolean;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        'flex items-baseline gap-2',
-        muted && 'text-ink-2',
-        strong && 'font-semibold',
-        className,
-      )}
-    >
-      <span className="min-w-0">{label}</span>
-      <span
-        aria-hidden
-        className="h-0 min-w-4 flex-1 translate-y-[-0.3em] border-b-2 border-dotted border-line"
-      />
-      <span className="tabular shrink-0 whitespace-nowrap">{value}</span>
-    </div>
-  );
-}
-
-export function SourceNote({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <p className={cn('flex items-start gap-2 text-[0.875rem] leading-snug text-ink-2', className)}>
-      <Icon name="info" size={16} className="mt-0.5 shrink-0" />
-      <span>{children}</span>
-    </p>
   );
 }
