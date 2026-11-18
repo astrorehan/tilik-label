@@ -9,6 +9,7 @@ import { cn } from '@/lib/cn';
 import type { PreparedImage } from '@/lib/image/prepareImage';
 import { ReadingChecklist } from './ReadingStatus';
 import { SAMPLE_PHOTOS, samplePhotoDisplayUrl } from './SamplePhotos';
+import { TemplateOffer } from './TemplateOffer';
 import type { ImagePicker } from './useImagePicker';
 
 interface StartStepProps {
@@ -20,6 +21,11 @@ interface StartStepProps {
   onCancelRead: () => void;
   reading: boolean;
   readCancelled: boolean;
+  /** Mode juri: kemasan contoh membawa data label dan jawaban siap pakai. */
+  judgeMode?: boolean;
+  /** Nama kemasan contoh yang datanya siap dipakai, bila foto berasal dari contoh. */
+  templateName?: string;
+  onUseTemplate?: () => void;
 }
 
 const PHOTO_TIPS: { icon: IconName; text: string }[] = [
@@ -64,6 +70,9 @@ export function StartStep({
   onCancelRead,
   reading,
   readCancelled,
+  judgeMode = false,
+  templateName,
+  onUseTemplate,
 }: StartStepProps) {
   return (
     <div className="space-y-4">
@@ -84,6 +93,8 @@ export function StartStep({
           onRead={onRead}
           onCancelRead={onCancelRead}
           onContinue={onContinue}
+          templateName={templateName}
+          onUseTemplate={onUseTemplate}
         />
       ) : picker.cameraOpen ? (
         <div className="panel enter space-y-4 p-5 sm:p-6">
@@ -94,7 +105,7 @@ export function StartStep({
           </Button>
         </div>
       ) : (
-        <ChooseSource picker={picker} onWithoutLabel={onWithoutLabel} />
+        <ChooseSource picker={picker} onWithoutLabel={onWithoutLabel} judgeMode={judgeMode} />
       )}
     </div>
   );
@@ -157,11 +168,68 @@ function SourceCard({
   );
 }
 
-function ChooseSource({ picker, onWithoutLabel }: { picker: ImagePicker; onWithoutLabel: () => void }) {
+function SamplePanel({ picker, judgeMode }: { picker: ImagePicker; judgeMode: boolean }) {
+  return (
+    <div className="panel p-4 sm:p-5">
+      <p className="font-semibold text-ink">
+        {judgeMode ? 'Pilih kemasan contoh' : 'Belum punya foto? Coba kemasan contoh'}
+      </p>
+      <p className="mt-0.5 text-sm text-ink-2">
+        {judgeMode
+          ? 'Kemasan rekaan. Isi label dan jawabannya sudah disiapkan, jadi tiap langkah bisa diisi sekali klik.'
+          : 'Kemasan rekaan, aman untuk mencoba pembaca foto.'}
+      </p>
+      <ul className="mt-3 grid grid-cols-3 gap-2.5">
+        {SAMPLE_PHOTOS.map((photo) => (
+          <li key={photo.file}>
+            <button
+              type="button"
+              onClick={() => picker.handleSample(photo)}
+              disabled={picker.busy}
+              className="press group/sample block w-full overflow-hidden rounded-[16px] border border-line bg-surface text-left disabled:opacity-60"
+            >
+              <Image
+                src={samplePhotoDisplayUrl(photo, 'card')}
+                alt=""
+                width={256}
+                height={341}
+                unoptimized
+                sizes="(min-width: 1024px) 160px, 30vw"
+                className="aspect-[4/5] w-full object-cover transition-transform duration-300 ease-out group-hover/sample:scale-[1.04]"
+              />
+              <span className="block px-2.5 py-2 text-xs font-semibold leading-tight text-ink sm:text-sm">
+                {photo.nama}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ChooseSource({
+  picker,
+  onWithoutLabel,
+  judgeMode,
+}: {
+  picker: ImagePicker;
+  onWithoutLabel: () => void;
+  judgeMode: boolean;
+}) {
   return (
     <div className="stagger space-y-3">
+      {judgeMode && (
+        <>
+          <SamplePanel picker={picker} judgeMode />
+          <div className="px-1 pt-2">
+            <p className="font-semibold text-ink">Atau pakai label sendiri</p>
+            <p className="mt-0.5 text-sm text-ink-2">Tanpa data contoh, jadi kolomnya diisi seperti pengguna biasa.</p>
+          </div>
+        </>
+      )}
       <SourceCard
-        primary
+        primary={!judgeMode}
         icon="camera"
         title="Ambil foto langsung"
         description="Pakai kamera HP atau laptop. Tilik memberi tahu kapan fotonya sudah jelas."
@@ -176,35 +244,7 @@ function ChooseSource({ picker, onWithoutLabel }: { picker: ImagePicker; onWitho
         disabled={picker.busy}
       />
 
-      <div className="panel p-4 sm:p-5">
-        <p className="font-semibold text-ink">Belum punya foto? Coba kemasan contoh</p>
-        <p className="mt-0.5 text-sm text-ink-2">Kemasan rekaan, aman untuk mencoba pembaca foto.</p>
-        <ul className="mt-3 grid grid-cols-3 gap-2.5">
-          {SAMPLE_PHOTOS.map((photo) => (
-            <li key={photo.file}>
-              <button
-                type="button"
-                onClick={() => picker.handleSample(photo)}
-                disabled={picker.busy}
-                className="press group/sample block w-full overflow-hidden rounded-[16px] border border-line bg-surface text-left disabled:opacity-60"
-              >
-                <Image
-                  src={samplePhotoDisplayUrl(photo, 'card')}
-                  alt=""
-                  width={256}
-                  height={341}
-                  unoptimized
-                  sizes="(min-width: 1024px) 160px, 30vw"
-                  className="aspect-[4/5] w-full object-cover transition-transform duration-300 ease-out group-hover/sample:scale-[1.04]"
-                />
-                <span className="block px-2.5 py-2 text-xs font-semibold leading-tight text-ink sm:text-sm">
-                  {photo.nama}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {!judgeMode && <SamplePanel picker={picker} judgeMode={false} />}
 
       <div className="flex flex-col gap-3 px-1 pt-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
@@ -230,6 +270,8 @@ function ReadPanel({
   onRead,
   onCancelRead,
   onContinue,
+  templateName,
+  onUseTemplate,
 }: {
   image: PreparedImage;
   reading: boolean;
@@ -237,6 +279,8 @@ function ReadPanel({
   onRead: () => void;
   onCancelRead: () => void;
   onContinue: () => void;
+  templateName?: string;
+  onUseTemplate?: () => void;
 }) {
   const readButtonRef = useRef<HTMLButtonElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
@@ -266,6 +310,16 @@ function ReadPanel({
 
   return (
     <section aria-labelledby="siap-judul" className="stagger space-y-3">
+      {templateName && onUseTemplate && (
+        <TemplateOffer
+          title={`Data contoh ${templateName} siap dipakai`}
+          actionLabel="Isi cepat dari data contoh"
+          onUse={onUseTemplate}
+        >
+          Lewati pembacaan foto dan isi semua kolom label sekali klik. Pembaca foto Tilik tetap bisa dicoba
+          di bawah.
+        </TemplateOffer>
+      )}
       <div className="panel space-y-4 p-5 sm:p-6">
         {image.mutu.baik ? (
           <div className="flex items-start gap-3">

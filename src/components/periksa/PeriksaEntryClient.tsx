@@ -20,7 +20,7 @@ import {
   subscribeProducts,
   type SavedProduct,
 } from '@/lib/produkSaya';
-import { PeriksaFlowClient } from './PeriksaFlowClient';
+import { PeriksaFlowClient, type JudgeTemplate } from './PeriksaFlowClient';
 
 const SERVER_SNAPSHOT = '\u0000server';
 
@@ -38,9 +38,12 @@ type DraftSession =
 export function PeriksaEntryClient({
   produkId,
   initialStep = 'hasil',
+  judgeTemplates,
 }: {
   produkId?: string;
   initialStep?: 'isi' | 'hasil';
+  /** Mode juri: kemasan contoh membawa isi cepat di formulir yang sama. */
+  judgeTemplates?: JudgeTemplate[];
 }) {
   const snapshot = useSyncExternalStore(
     subscribeProducts,
@@ -93,13 +96,14 @@ export function PeriksaEntryClient({
 
   if (!produkId) {
     if (draftSnapshot === SERVER_SNAPSHOT || draftSession.kind === 'pending') {
-      return <PeriksaFlowClient key="fresh-0" persistDraft={false} />;
+      return <PeriksaFlowClient key="fresh-0" persistDraft={false} judgeTemplates={judgeTemplates} />;
     }
 
     if (draftSession.kind === 'restored') {
       return (
         <PeriksaFlowClient
           key={`restored-${draftSession.revision}`}
+          judgeTemplates={judgeTemplates}
           productId={draftSession.draft.productId}
           initialSavedProduct={draftSession.savedProduct}
           initial={{
@@ -118,6 +122,7 @@ export function PeriksaEntryClient({
     return (
       <PeriksaFlowClient
         key={`fresh-${draftSession.revision}`}
+        judgeTemplates={judgeTemplates}
         persistDraft
         onResetDraft={handleResetDraft}
       />
@@ -147,7 +152,7 @@ export function PeriksaEntryClient({
           Produk tersimpan tidak bisa dibuka. Ini biasa terjadi di mode privat atau bila penyimpanan
           situs diblokir. Kamu tetap bisa memeriksa label dari awal di bawah.
         </Notice>
-        <PeriksaFlowClient persistDraft={false} />
+        <PeriksaFlowClient persistDraft={false} judgeTemplates={judgeTemplates} />
       </div>
     );
   }
@@ -167,7 +172,7 @@ export function PeriksaEntryClient({
           Mungkin sudah dihapus, atau data peramban sudah dibersihkan. Kamu bisa mulai periksa dari
           awal di bawah.
         </Notice>
-        <PeriksaFlowClient persistDraft />
+        <PeriksaFlowClient persistDraft judgeTemplates={judgeTemplates} />
       </div>
     );
   }
@@ -175,6 +180,7 @@ export function PeriksaEntryClient({
   return (
     <PeriksaFlowClient
       key={`${product.id}:${initialStep}`}
+      judgeTemplates={judgeTemplates}
       productId={product.id}
       initialSavedProduct={product}
       initial={{ label: product.label, answers: product.answers, step: initialStep, farthestStep: 'hasil' }}

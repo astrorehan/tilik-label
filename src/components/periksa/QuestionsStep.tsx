@@ -10,6 +10,7 @@ import { QUESTION_ANSWER_FIELDS, type AnswerPatch } from '@/domain/tilikActions'
 import { cn } from '@/lib/cn';
 import { ProductAnswerInput } from './ProductAnswerInput';
 import { RecipeEditor } from './RecipeEditor';
+import { TemplateOffer } from './TemplateOffer';
 import { useCardTransition } from './useCardTransition';
 
 type YesNo = 'ya' | 'tidak';
@@ -133,6 +134,7 @@ export function QuestionsStep({
   onDone,
   initialQuestion,
   shelfLifeFromLabel = null,
+  template,
 }: {
   answers: AdditionalAnswers;
   onChange: (next: AdditionalAnswers) => void;
@@ -140,6 +142,8 @@ export function QuestionsStep({
   onDone: () => void;
   initialQuestion?: AdditionalQuestionId;
   shelfLifeFromLabel?: number | null;
+  /** Mode juri: jawaban kemasan contoh yang bisa dipakai sekali klik. */
+  template?: { nama: string; answers: AdditionalAnswers };
 }) {
   const { index, moveTo, regionRef, cardRef } = useCardTransition(
     Math.max(0, QUESTION_ORDER.findIndex((question) => question.id === initialQuestion)),
@@ -202,6 +206,20 @@ export function QuestionsStep({
     if (applied.resep) setRecipeRevision((revision) => revision + 1);
     onChange({ ...previous, ...applied });
     return applied;
+  };
+
+  const templateApplied = template ? JSON.stringify(answers) === JSON.stringify(template.answers) : false;
+
+  const applyTemplate = () => {
+    if (!template) return;
+    if (advanceTimer.current) {
+      clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
+    const next = structuredClone(template.answers);
+    setUmurText(next.umurSimpanHari ? String(next.umurSimpanHari) : '');
+    setRecipeRevision((revision) => revision + 1);
+    onChange(next);
   };
 
   const pickOption = (position: number) => {
@@ -355,6 +373,26 @@ export function QuestionsStep({
         goTo(index + 1);
       }}
     >
+      {template && (
+        templateApplied ? (
+          <TemplateOffer
+            done
+            title={`Jawaban contoh ${template.nama} sudah terisi`}
+            actionLabel="Lihat hasil pemeriksaan"
+            onUse={() => goTo(QUESTION_ORDER.length)}
+          >
+            Semua pertanyaan terjawab. Ubah jawaban mana saja untuk melihat hasilnya ikut berubah.
+          </TemplateOffer>
+        ) : (
+          <TemplateOffer
+            title={`Jawaban contoh ${template.nama} siap dipakai`}
+            actionLabel="Isi semua jawaban"
+            onUse={applyTemplate}
+          >
+            Umur simpan, cara simpan, sertifikat halal, alat produksi, dan resep diisi sekali klik.
+          </TemplateOffer>
+        )
+      )}
       <div ref={regionRef} className="panel overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-line/70 px-5 py-3 sm:px-7">
           <p className="text-sm font-semibold text-ink-2">
