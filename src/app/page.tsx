@@ -36,10 +36,11 @@ export default function HomePage() {
 
           <figure className="home-photo">
             <Image
-              src="/visual/kemasan-keripik-ikan.png"
+              src="/visual/kemasan-keripik-ikan.webp"
               alt="Stiker di sisi kemasan keripik ikan"
               fill
-              loading="eager"
+              preload
+              unoptimized
               fetchPriority="high"
               sizes="(min-width: 1200px) 568px, (min-width: 900px) 50vw, 92vw"
               className="object-cover"

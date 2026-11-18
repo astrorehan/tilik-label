@@ -1,6 +1,5 @@
 import Image from 'next/image';
 import { Icon } from '@/components/icons/icon';
-import { SAMPLE_PHOTOS, samplePhotoUrl } from '@/components/periksa/SamplePhotos';
 import { ButtonLink } from '@/components/ui/button';
 import { buildCorrectedLabel } from '@/domain/correctedLabel';
 import { SAMPLE_LABEL_CASES } from '@/domain/sampleLabels';
@@ -9,11 +8,10 @@ import { TilikGuide } from './TilikGuide';
 export function ExampleResult() {
   const sample = SAMPLE_LABEL_CASES.find(({ id }) => id === 'sambal-bawang-rumahan');
   if (!sample) return null;
-  const photo = SAMPLE_PHOTOS.find(({ caseId }) => caseId === sample.id);
   const corrected = buildCorrectedLabel(sample.label, sample.answers);
 
   return (
-    <section aria-labelledby="contoh-beranda-judul" className="page-shell py-10 sm:py-14 lg:py-20">
+    <section aria-labelledby="contoh-beranda-judul" className="page-shell below-fold py-10 sm:py-14 lg:py-20">
       <div className="grid items-center gap-7 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-12">
         <div className="min-w-0 space-y-5">
           <div>
@@ -28,11 +26,9 @@ export function ExampleResult() {
 
         <figure className="glass-float min-w-0 space-y-4 rounded-[28px] p-4 sm:p-6">
           <figcaption className="flex items-center gap-3.5">
-            {photo && (
-              <div className="relative size-16 shrink-0 overflow-hidden rounded-[14px] border border-line bg-paper-deep sm:size-20">
-                <Image src={samplePhotoUrl(photo)} alt="" fill sizes="80px" className="object-cover" />
-              </div>
-            )}
+            <div className="relative size-16 shrink-0 overflow-hidden rounded-[14px] border border-line bg-paper-deep sm:size-20">
+              <Image src="/contoh-foto/sambal-bawang-thumb.webp" alt="" fill unoptimized sizes="80px" className="object-cover" />
+            </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-ink-2">Contoh pemeriksaan · Kemasan rekaan</p>
               <p className="mt-1 font-label text-xl leading-tight font-semibold text-ink">{sample.label.namaProduk}</p>

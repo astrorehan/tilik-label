@@ -15,6 +15,9 @@ export const SAMPLE_PHOTOS: SamplePhoto[] = [
 
 export const samplePhotoUrl = (photo: SamplePhoto) => `/contoh-foto/${photo.file}`;
 
+export const samplePhotoDisplayUrl = (photo: SamplePhoto, size: 'thumb' | 'card' | 'view') =>
+  `/contoh-foto/${photo.file.replace(/\.jpg$/i, '')}-${size}.webp`;
+
 export function SamplePhotos({
   onPick,
   disabled,
@@ -35,10 +38,11 @@ export function SamplePhotos({
               className="flex w-full items-center gap-3 rounded-xl px-1.5 py-2 text-left hover:bg-brand-tint disabled:opacity-60"
             >
               <Image
-                src={samplePhotoUrl(photo)}
+                src={samplePhotoDisplayUrl(photo, 'thumb')}
                 alt=""
-                width={1080}
-                height={1440}
+                width={120}
+                height={160}
+                unoptimized
                 sizes="44px"
                 className="size-11 shrink-0 rounded-lg object-cover"
               />

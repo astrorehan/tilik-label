@@ -11,6 +11,10 @@ const localIps = Object.values(networkInterfaces())
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: [...localIps, '*.trycloudflare.com'],
+  images: {
+    formats: ['image/webp'],
+    qualities: [60, 75],
+  },
 };
 
 export default nextConfig;

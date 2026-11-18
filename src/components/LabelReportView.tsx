@@ -133,12 +133,13 @@ export function LabelReportView({ report, productTitle, actions, renderRuleExtra
         </div>
 
         {filters.map(({ id, label }) => {
+          if (filter !== id) return null;
           const findings = report.hasil.filter((item) => item.status === id);
           const visibleFindings = id === 'kurang' ? findings : findings.slice(0, INITIAL_FINDINGS);
           const remainingFindings = findings.slice(visibleFindings.length);
 
           return (
-            <div key={id} hidden={filter !== id}>
+            <div key={id}>
               {visibleFindings.length > 0 ? (
                 <ul aria-label={label} className="divide-y divide-line">
                   {visibleFindings.map((item, index) => (

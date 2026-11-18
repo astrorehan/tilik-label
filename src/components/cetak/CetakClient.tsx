@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { ButtonLink } from '@/components/ui/button';
 import { Notice } from '@/components/ui/surface';
@@ -9,7 +10,8 @@ import {
   parseProductsSnapshot,
   subscribeProducts,
 } from '@/lib/produkSaya';
-import { CetakIsi } from './CetakIsi';
+
+const CetakIsi = dynamic(() => import('./CetakIsi').then((mod) => mod.CetakIsi));
 
 const SERVER_SNAPSHOT = '\u0000server';
 
@@ -36,7 +38,7 @@ export function CetakClient({ produkId }: { produkId?: string }) {
     };
   }, []);
 
-  if (snapshot === SERVER_SNAPSHOT) {
+  if (produkId && snapshot === SERVER_SNAPSHOT) {
     return (
       <p className="text-sm text-ink-2" role="status">
         Membuka produk dari perangkat…

@@ -1,38 +1,53 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useLayoutEffect, useRef, useState } from 'react';
-import { CetakIsi } from '@/components/cetak/CetakIsi';
 import { Icon } from '@/components/icons/icon';
-import { PeriksaFlowClient, type PeriksaFlowInitial } from '@/components/periksa/PeriksaFlowClient';
-import { SAMPLE_PHOTOS, samplePhotoUrl, type SamplePhoto } from '@/components/periksa/SamplePhotos';
+import type { PeriksaFlowInitial } from '@/components/periksa/PeriksaFlowClient';
+import { SAMPLE_PHOTOS, samplePhotoDisplayUrl, type SamplePhoto } from '@/components/periksa/SamplePhotos';
 import { Button } from '@/components/ui/button';
 import type { AdditionalAnswers, LabelData } from '@/domain';
-import { SAMPLE_LABEL_CASES, type SampleLabelCase } from '@/domain/sampleLabels';
+import type { SampleLabelCase } from '@/domain/sampleLabels';
 import { cn } from '@/lib/cn';
-import { focusInView, holdHeightDuringNavigation } from '@/lib/pageFocus';
 import type { SavedProduct } from '@/lib/produkSaya';
 import styles from './JudgeDemo.module.css';
+
+export interface JudgeIntroSample {
+  id: string;
+  kategori: string;
+  namaProduk: string;
+  komposisi: string;
+  kedaluwarsa: string;
+}
+
+const PeriksaFlowClient = dynamic(() =>
+  import('@/components/periksa/PeriksaFlowClient').then((mod) => mod.PeriksaFlowClient),
+);
+const CetakIsi = dynamic(() => import('@/components/cetak/CetakIsi').then((mod) => mod.CetakIsi));
 
 type DemoView =
   | { kind: 'intro' }
   | { kind: 'periksa'; initial: PeriksaFlowInitial }
   | { kind: 'cetak'; product: SavedProduct };
 
-function LabelScan({ sample, photo }: { sample: SampleLabelCase; photo?: SamplePhoto }) {
+function LabelScan({ sample, photo }: { sample: JudgeIntroSample; photo?: SamplePhoto }) {
   const rows = [
-    ['Nama produk', sample.label.namaProduk],
-    ['Komposisi', sample.label.daftarBahanTeks.replace(/^Komposisi:\s*/i, '')],
-    ['Kedaluwarsa', sample.label.kedaluwarsaTeks],
+    ['Nama produk', sample.namaProduk],
+    ['Komposisi', sample.komposisi],
+    ['Kedaluwarsa', sample.kedaluwarsa],
   ];
   return (
     <div className={styles.scan}>
       <figure className={styles.photo}>
         {photo && (
           <Image
-            src={samplePhotoUrl(photo)}
+            src={samplePhotoDisplayUrl(photo, 'card')}
             alt={`Kemasan rekaan ${photo.nama}`}
             fill
+            preload
+            unoptimized
+            fetchPriority="high"
             sizes="(min-width: 1024px) 220px, 34vw"
             className="object-cover"
           />
@@ -54,13 +69,13 @@ function LabelScan({ sample, photo }: { sample: SampleLabelCase; photo?: SampleP
   );
 }
 
-export function JudgeDemo() {
+export function JudgeDemo({ introSamples }: { introSamples: JudgeIntroSample[] }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [view, setView] = useState<DemoView>({ kind: 'intro' });
   const sessionRef = useRef<HTMLDivElement>(null);
   const hasNavigated = useRef(false);
-  const heldHeight = useRef<ReturnType<typeof holdHeightDuringNavigation>>(undefined);
-  const sample = SAMPLE_LABEL_CASES[selectedIndex]!;
+  const heldHeight = useRef<{ release: () => void; afterScroll: (smooth: boolean) => void }>(undefined);
+  const sample = introSamples[selectedIndex]!;
   const photo = SAMPLE_PHOTOS.find((item) => item.caseId === sample.id);
 
   useLayoutEffect(() => () => heldHeight.current?.release(), []);
@@ -68,24 +83,36 @@ export function JudgeDemo() {
   useLayoutEffect(() => {
     if (!hasNavigated.current) return;
     const selector = view.kind === 'periksa' && view.initial.step === 'isi' ? '#isian-produk-judul' : 'h1';
-    const smooth = focusInView(sessionRef.current?.querySelector<HTMLElement>(selector) ?? null);
-    heldHeight.current?.afterScroll(smooth);
+    const target = sessionRef.current?.querySelector<HTMLElement>(selector) ?? null;
+    void import('@/lib/pageFocus').then(({ focusInView }) => {
+      const smooth = focusInView(target);
+      heldHeight.current?.afterScroll(smooth);
+    });
   }, [view]);
 
-  const navigate = (next: DemoView) => {
+  const navigate = async (next: DemoView) => {
     hasNavigated.current = true;
     heldHeight.current?.release();
+    const { holdHeightDuringNavigation } = await import('@/lib/pageFocus');
     heldHeight.current = holdHeightDuringNavigation(sessionRef.current);
     setView(next);
   };
 
-  const openInspection = (step: 'isi' | 'hasil', data: Pick<SampleLabelCase, 'label' | 'answers'> = sample) => {
-    navigate({ kind: 'periksa', initial: { label: data.label, answers: data.answers, step, farthestStep: 'hasil' } });
+  const openInspection = async (step: 'isi' | 'hasil', data?: Pick<SampleLabelCase, 'label' | 'answers'>) => {
+    let resolved = data;
+    if (!resolved) {
+      const { SAMPLE_LABEL_CASES } = await import('@/domain/sampleLabels');
+      resolved = SAMPLE_LABEL_CASES[selectedIndex]!;
+    }
+    await navigate({
+      kind: 'periksa',
+      initial: { label: resolved.label, answers: resolved.answers, step, farthestStep: 'hasil' },
+    });
   };
 
   const openPrint = (label: LabelData, answers: AdditionalAnswers) => {
     const now = new Date().toISOString();
-    navigate({
+    void navigate({
       kind: 'cetak',
       product: { id: sample.id, nama: label.namaProduk.trim() || 'Label demo', label, answers, dibuatPada: now, diperbaruiPada: now },
     });
@@ -101,8 +128,8 @@ export function JudgeDemo() {
               <h1 id="juri-judul" tabIndex={-1} className="type-h1 focus:outline-none">Dari foto ke label siap cetak</h1>
               <p className="max-w-prose text-ink-2">Pilih kemasan di bawah. Tulisan label dan data produknya sudah terisi, jadi kamu bisa langsung mencoba hasil pemeriksaan, benahi temuan, dan pratinjau cetak.</p>
               <div className="flex flex-wrap items-center gap-2.5">
-                <Button iconAfter="arrowRight" onClick={() => openInspection('hasil')}>Lihat hasil demo</Button>
-                <Button size="md" variant="secondary" icon="edit" onClick={() => openInspection('isi')}>Lihat isian</Button>
+                <Button iconAfter="arrowRight" onClick={() => void openInspection('hasil')}>Lihat hasil demo</Button>
+                <Button size="md" variant="secondary" icon="edit" onClick={() => void openInspection('isi')}>Lihat isian</Button>
               </div>
             </div>
             <LabelScan key={sample.id} sample={sample} photo={photo} />
@@ -111,7 +138,7 @@ export function JudgeDemo() {
           <section aria-labelledby="juri-contoh-judul" className="space-y-3">
             <h2 id="juri-contoh-judul" className="type-h3">Pilih kemasan demo</h2>
             <ul className="grid gap-2.5 sm:grid-cols-3 sm:gap-3">
-              {SAMPLE_LABEL_CASES.map((item, index) => {
+              {introSamples.map((item, index) => {
                 const choice = SAMPLE_PHOTOS.find((option) => option.caseId === item.id);
                 const selected = index === selectedIndex;
                 return (
@@ -125,9 +152,9 @@ export function JudgeDemo() {
                         selected ? 'border-brand bg-brand-tint' : 'border-line bg-surface',
                       )}
                     >
-                      {choice && <Image src={samplePhotoUrl(choice)} alt="" width={1080} height={1440} sizes="52px" className="h-14 w-12 shrink-0 rounded-[10px] object-cover" />}
+                      {choice && <Image src={samplePhotoDisplayUrl(choice, 'thumb')} alt="" width={120} height={160} unoptimized sizes="52px" className="h-14 w-12 shrink-0 rounded-[10px] object-cover" />}
                       <span className="min-w-0 flex-1">
-                        <span className="block font-semibold text-ink">{choice?.nama ?? item.label.namaProduk}</span>
+                        <span className="block font-semibold text-ink">{choice?.nama ?? item.namaProduk}</span>
                         <span className="block text-xs leading-snug text-ink-2 sm:text-sm">{item.kategori}</span>
                       </span>
                       {selected && <Icon name="check" size={18} className="shrink-0 text-brand-deep" />}
@@ -141,16 +168,16 @@ export function JudgeDemo() {
       ) : (
         <>
           <div className="panel flex flex-wrap items-center justify-between gap-2.5 px-4 py-2.5 sm:px-5 print:hidden">
-            <p className="text-sm text-ink-2"><strong className="text-ink">Demo juri</strong> · {photo?.nama ?? sample.label.namaProduk} rekaan</p>
+            <p className="text-sm text-ink-2"><strong className="text-ink">Demo juri</strong> · {photo?.nama ?? sample.namaProduk} rekaan</p>
             <div className="flex flex-wrap gap-2">
-              {view.kind === 'cetak' && <Button size="md" variant="secondary" icon="arrowLeft" onClick={() => openInspection('hasil', view.product)}>Kembali ke hasil demo</Button>}
-              <Button size="md" variant="ghost" onClick={() => navigate({ kind: 'intro' })}>Ganti contoh</Button>
+              {view.kind === 'cetak' && <Button size="md" variant="secondary" icon="arrowLeft" onClick={() => void openInspection('hasil', view.product)}>Kembali ke hasil demo</Button>}
+              <Button size="md" variant="ghost" onClick={() => void navigate({ kind: 'intro' })}>Ganti contoh</Button>
             </div>
           </div>
           {view.kind === 'periksa' ? (
             <PeriksaFlowClient initial={view.initial} onDemoPrint={openPrint} />
           ) : (
-            <CetakIsi product={view.product} onEdit={() => openInspection('isi', view.product)} />
+            <CetakIsi product={view.product} onEdit={() => void openInspection('isi', view.product)} />
           )}
         </>
       )}

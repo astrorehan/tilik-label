@@ -8,7 +8,7 @@ import { Notice } from '@/components/ui/surface';
 import { cn } from '@/lib/cn';
 import type { PreparedImage } from '@/lib/image/prepareImage';
 import { ReadingChecklist } from './ReadingStatus';
-import { SAMPLE_PHOTOS, samplePhotoUrl } from './SamplePhotos';
+import { SAMPLE_PHOTOS, samplePhotoDisplayUrl } from './SamplePhotos';
 import type { ImagePicker } from './useImagePicker';
 
 interface StartStepProps {
@@ -189,10 +189,11 @@ function ChooseSource({ picker, onWithoutLabel }: { picker: ImagePicker; onWitho
                 className="press group/sample block w-full overflow-hidden rounded-[16px] border border-line bg-surface text-left disabled:opacity-60"
               >
                 <Image
-                  src={samplePhotoUrl(photo)}
+                  src={samplePhotoDisplayUrl(photo, 'card')}
                   alt=""
-                  width={1080}
-                  height={1440}
+                  width={256}
+                  height={341}
+                  unoptimized
                   sizes="(min-width: 1024px) 160px, 30vw"
                   className="aspect-[4/5] w-full object-cover transition-transform duration-300 ease-out group-hover/sample:scale-[1.04]"
                 />
