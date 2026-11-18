@@ -63,6 +63,19 @@ describe('reviewLabel', () => {
     expect(review.corrected.data.keteranganHalalTeks).toBe('');
   });
 
+  it('menaruh klaim "tanpa pengawet" yang bertentangan dengan komposisi di kelompok otomatis', () => {
+    const review = reviewLabel(
+      makeLabel({
+        daftarBahanTeks: 'Komposisi: cabai rawit, garam, natrium benzoat.',
+        pernyataanLain: ['Tanpa pengawet'],
+      }),
+      makeAnswers(),
+    );
+    expect(review.report.hasil.find((item) => item.id === 'L-16')?.status).toBe('kurang');
+    expect(groupOf(review, 'L-16')).toBe('otomatis');
+    expect(review.corrected.data.pernyataanLain).toEqual([]);
+  });
+
   it('menaruh aturan cetak fisik di kelompok cek', () => {
     const review = reviewLabel(makeLabel({ daftarBahanTeks: 'Komposisi: pisang, telur.' }), makeAnswers());
     for (const id of PRINT_GUARANTEED_RULES) {

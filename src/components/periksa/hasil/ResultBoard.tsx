@@ -365,10 +365,13 @@ function ResultGreeting({ review, input }: { review: LabelReview; input?: TilikI
   const ranked = ids?.flatMap((id) => candidates.find((candidate) => candidate.id === id) ?? []);
   const priorities = ranked?.length ? ranked : candidates.slice(0, 2);
   const fixed = review.groups.otomatis.length;
+  const firstSteps = 'Yang masih perlu kamu tangani dulu:';
   const summary = fixed > 0
-    ? `Aku sudah membetulkan ${fixed} hal di label perbaikan.`
+    ? priorities.length > 0
+      ? `Aku sudah membetulkan ${fixed} hal di label perbaikan. ${firstSteps}`
+      : `Aku sudah membetulkan ${fixed} hal di label perbaikan. Sisanya sudah sesuai.`
     : priorities.length > 0
-      ? 'Ini yang bisa kamu tangani dulu.'
+      ? firstSteps
       : 'Semua aturan yang bisa kuperiksa sudah terpenuhi.';
   const mood: TilikMood = priorities.length > 0 ? 'explaining' : 'happy';
 
