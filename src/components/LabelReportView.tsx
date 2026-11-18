@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import type { AssistantInput } from '@/components/asisten/AssistantChat';
+import { ReportAssistant, ReportAssistantCompanion, ReportFindingAssistant } from '@/components/asisten/ReportAssistant';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { Notice } from '@/components/ui/surface';
 import type { LabelCheckReport, LabelRuleId, LabelRuleResult, RuleStatus } from '@/domain';
@@ -11,6 +13,7 @@ interface LabelReportViewProps {
   productTitle: string;
   actions?: ReactNode;
   renderRuleExtra?: (item: LabelRuleResult) => ReactNode;
+  assistantInput?: AssistantInput;
 }
 
 const INITIAL_FINDINGS = 4;
@@ -86,14 +89,17 @@ function Finding({
             </div>
           )}
           <p className="text-xs text-ink-3">{item.id} · {item.rujukan.peraturan}, {item.rujukan.pasal}</p>
-          {children}
+          <div className="flex flex-wrap items-center gap-2">
+            {children}
+            <ReportFindingAssistant ruleId={item.id} title={FINDING_LABEL[item.id]} />
+          </div>
         </div>
       </details>
     </li>
   );
 }
 
-export function LabelReportView({ report, productTitle, actions, renderRuleExtra }: LabelReportViewProps) {
+export function LabelReportView({ report, productTitle, actions, renderRuleExtra, assistantInput }: LabelReportViewProps) {
   const { kurang, tidakBisaDicek, lengkap } = report.ringkasan;
   const [filter, setFilter] = useState<RuleStatus>(() => {
     if (kurang > 0) return 'kurang';
@@ -105,11 +111,9 @@ export function LabelReportView({ report, productTitle, actions, renderRuleExtra
     { id: 'tidak_bisa_dicek', label: 'Perlu dicek lagi', count: tidakBisaDicek },
     { id: 'lengkap', label: 'Lengkap', count: lengkap },
   ];
-  const findings = report.hasil.filter((item) => item.status === filter);
-  const additionalCount = findings.length - INITIAL_FINDINGS;
 
   return (
-    <section aria-label="Ringkasan pemeriksaan label" className="space-y-4">
+    <ReportAssistant report={report} productTitle={productTitle} input={assistantInput}>
       <div className="panel bg-linear-to-br from-surface to-brand-tint p-5 sm:p-7">
         <p className="mb-1 font-semibold wrap-anywhere text-ink-2">{productTitle}</p>
         <h2 className="type-h1">
@@ -119,6 +123,7 @@ export function LabelReportView({ report, productTitle, actions, renderRuleExtra
           <p className="mt-2 text-sm text-ink-2">{tidakBisaDicek} bagian perlu dicek lagi dengan data tambahan atau kemasan fisik.</p>
         )}
         {actions && <div className="mt-4">{actions}</div>}
+        <ReportAssistantCompanion summary={report.ringkasan} />
       </div>
 
       {report.alergenTerdeteksi.length > 0 && (
@@ -148,33 +153,41 @@ export function LabelReportView({ report, productTitle, actions, renderRuleExtra
           ))}
         </div>
 
-        <div key={filter}>
-          {findings.length > 0 ? (
-            <ul aria-label={filters.find((item) => item.id === filter)?.label} className="divide-y divide-line">
-              {findings.slice(0, INITIAL_FINDINGS).map((item, index) => (
-                <Finding key={item.id} item={item} initiallyOpen={index === 0 && filter === 'kurang'}>
-                  {renderRuleExtra?.(item)}
-                </Finding>
-              ))}
-            </ul>
-          ) : (
-            <p className="px-4 py-5 text-sm text-ink-2">{STATUS[filter].empty}</p>
-          )}
-          {additionalCount > 0 && (
-            <details className="group/more rounded-b-[24px] border-t border-line">
-              <summary className="disclosure-summary font-semibold text-brand-deep">
-                Lihat {additionalCount} lainnya
-                <Icon name="chevronDown" size={18} className="shrink-0 transition-transform group-open/more:rotate-180" />
-              </summary>
-              <ul className="divide-y divide-line border-t border-line">
-                {findings.slice(INITIAL_FINDINGS).map((item) => (
-                  <Finding key={item.id} item={item}>{renderRuleExtra?.(item)}</Finding>
-                ))}
-              </ul>
-            </details>
-          )}
-        </div>
+        {filters.map(({ id, label }) => {
+          const findings = report.hasil.filter((item) => item.status === id);
+          const visibleFindings = id === 'kurang' ? findings : findings.slice(0, INITIAL_FINDINGS);
+          const remainingFindings = findings.slice(visibleFindings.length);
+
+          return (
+            <div key={id} hidden={filter !== id}>
+              {visibleFindings.length > 0 ? (
+                <ul aria-label={label} className="divide-y divide-line">
+                  {visibleFindings.map((item, index) => (
+                    <Finding key={item.id} item={item} initiallyOpen={id === 'kurang' && index === 0}>
+                      {renderRuleExtra?.(item)}
+                    </Finding>
+                  ))}
+                </ul>
+              ) : (
+                <p className="px-4 py-5 text-sm text-ink-2">{STATUS[id].empty}</p>
+              )}
+              {remainingFindings.length > 0 && (
+                <details className="group/more rounded-b-[24px] border-t border-line">
+                  <summary className="disclosure-summary font-semibold text-brand-deep">
+                    Lihat {remainingFindings.length} lainnya
+                    <Icon name="chevronDown" size={18} className="shrink-0 transition-transform group-open/more:rotate-180" />
+                  </summary>
+                  <ul className="divide-y divide-line border-t border-line">
+                    {remainingFindings.map((item) => (
+                      <Finding key={item.id} item={item}>{renderRuleExtra?.(item)}</Finding>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          );
+        })}
       </div>
-    </section>
+    </ReportAssistant>
   );
 }

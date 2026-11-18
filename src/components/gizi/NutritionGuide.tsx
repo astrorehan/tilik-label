@@ -9,7 +9,7 @@ export function NutritionGuide() {
         <p className="text-ink-2">Pilih uji laboratorium atau nilai dari BPOM. Bila keduanya belum tersedia, gunakan cara hitung resmi dari bahan.</p>
         <div className="space-y-2.5">
           {NUTRITION_PATHS.map((path) => (
-            <Disclosure key={path.id} label={path.title} icon="document">
+            <Disclosure key={path.id} label={path.title} icon="document" open>
               <div className="space-y-2 text-sm leading-relaxed text-ink-2">
                 <p>{path.summary}</p>
                 <p>{path.when}</p>
@@ -22,12 +22,12 @@ export function NutritionGuide() {
       </section>
 
       <div className="space-y-2.5">
-        <Disclosure label="Yang perlu disiapkan" icon="check">
+        <Disclosure label="Yang perlu disiapkan" icon="check" open>
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-ink-2">
             {NUTRITION_SAFE_STEPS.map((step) => <li key={step}>{step}</li>)}
           </ul>
         </Disclosure>
-        <Disclosure label="Ketentuan tabel dan pengecualian" icon="ledger">
+        <Disclosure label="Ketentuan tabel dan pengecualian" icon="ledger" open>
           <ul className="divide-y divide-line">
             {NUTRITION_FACTS.map((fact) => (
               <li key={fact.id} className="space-y-1 py-3 first:pt-0 last:pb-0">

@@ -125,11 +125,7 @@ export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
       </div>
 
       <div key={sample.id} className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(14rem,0.53fr)]">
-        <div className="min-w-0 space-y-4">
-          <LabelReportView report={report} productTitle={sample.label.namaProduk} />
-          <PermitPathView result={permit} />
-        </div>
-        <aside className="min-w-0 space-y-4" aria-label="Kemasan dan data contoh">
+        <aside className="min-w-0 space-y-4 md:col-start-2 md:row-start-1" aria-label="Kemasan dan data contoh">
           {photo && (
             <figure className="panel p-3.5 sm:p-4">
               <Image
@@ -148,6 +144,10 @@ export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
             <SampleData sample={sample} />
           </Disclosure>
         </aside>
+        <div className="min-w-0 space-y-4 md:col-start-1 md:row-start-1">
+          <LabelReportView report={report} productTitle={sample.label.namaProduk} />
+          <PermitPathView result={permit} />
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from 'react';
+import type { ComponentProps, ComponentPropsWithRef, ReactNode } from 'react';
 import { Icon, type IconName } from '@/components/icons/icon';
 import { cn } from '@/lib/cn';
 
@@ -77,7 +77,7 @@ function ButtonContent({
 }
 
 type ButtonProps = ButtonLookProps &
-  ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean };
+  ComponentPropsWithRef<'button'> & { busy?: boolean };
 
 export function Button({
   variant,

@@ -5,6 +5,7 @@ import { Icon } from '@/components/icons/icon';
 import { Button } from '@/components/ui/button';
 import { Disclosure } from '@/components/ui/disclosure';
 import { Notice } from '@/components/ui/surface';
+import { cn } from '@/lib/cn';
 import {
   ACCEPTED_IMAGE_TYPES,
   ImagePrepareError,
@@ -22,7 +23,9 @@ interface StartStepProps {
   onContinue: () => void;
   onWithoutLabel: () => void;
   onRead: () => void;
+  onCancelRead: () => void;
   reading: boolean;
+  readCancelled: boolean;
 }
 
 export function StartStep({
@@ -31,15 +34,27 @@ export function StartStep({
   onContinue,
   onWithoutLabel,
   onRead,
+  onCancelRead,
   reading,
+  readCancelled,
 }: StartStepProps) {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const regionRef = useRef<HTMLDivElement>(null);
+  const dragDepth = useRef(0);
+  const mountedRef = useRef(false);
   const panel = image ? 'preview' : cameraOpen ? 'camera' : 'choose';
   const previousPanel = useRef(panel);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (previousPanel.current !== panel) {
@@ -54,16 +69,24 @@ export function StartStep({
   };
 
   const prepare = async (load: () => Promise<Blob>, fallbackError: string) => {
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      onImage(await prepareImageFile(await load()));
+      const prepared = await prepareImageFile(await load());
+      if (mountedRef.current) onImage(prepared);
     } catch (caught) {
-      setError(caught instanceof ImagePrepareError ? caught.message : fallbackError);
+      if (mountedRef.current) {
+        setError(caught instanceof ImagePrepareError ? caught.message : fallbackError);
+      }
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
       if (fileRef.current) fileRef.current.value = '';
     }
+  };
+
+  const handleFile = (file?: File) => {
+    if (file) void prepare(async () => file, 'Gambar gagal diolah. Coba berkas lain.');
   };
 
   const handleSample = (photo: SamplePhoto) => {
@@ -81,10 +104,7 @@ export function StartStep({
         type="file"
         accept={ACCEPTED_IMAGE_TYPES.join(',')}
         hidden
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          if (file) void prepare(async () => file, 'Gambar gagal diolah. Coba berkas lain.');
-        }}
+        onChange={(event) => handleFile(event.target.files?.[0])}
       />
 
       {error && <Notice tone="danger" title="Gambar belum bisa dipakai">{error}</Notice>}
@@ -108,7 +128,9 @@ export function StartStep({
             }}
             onContinue={onContinue}
             onRead={onRead}
+            onCancelRead={onCancelRead}
             reading={reading}
+            readCancelled={readCancelled}
           />
         ) : cameraOpen ? (
           <CameraCapture
@@ -121,10 +143,37 @@ export function StartStep({
           />
         ) : (
           <div className="panel p-3.5 sm:p-5">
-            <div className="flex flex-col items-center rounded-[18px] border border-dashed border-brand/45 bg-brand-tint/60 px-4 py-7 text-center sm:py-10">
+            <div
+              className={cn(
+                'flex flex-col items-center rounded-[18px] border-2 border-dashed px-4 py-7 text-center transition-colors sm:py-10',
+                dragging && !busy ? 'border-brand bg-brand-soft' : 'border-brand/45 bg-brand-tint/60',
+              )}
+              onDragEnter={(event) => {
+                if (event.dataTransfer.types.includes('Files')) dragDepth.current += 1;
+              }}
+              onDragOver={(event) => {
+                if (!event.dataTransfer.types.includes('Files')) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = busy ? 'none' : 'copy';
+                if (!busy) setDragging(true);
+              }}
+              onDragLeave={() => {
+                dragDepth.current = Math.max(0, dragDepth.current - 1);
+                if (dragDepth.current === 0) setDragging(false);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                dragDepth.current = 0;
+                setDragging(false);
+                handleFile(event.dataTransfer.files[0]);
+              }}
+            >
               <span className="mb-3 grid size-13 place-items-center rounded-[18px] bg-brand-soft text-brand-deep">
                 <Icon name="scan" size={28} />
               </span>
+              <p className="mb-1 font-semibold text-ink">
+                {dragging && !busy ? 'Lepaskan gambar di sini' : 'Seret gambar ke sini atau pilih cara di bawah'}
+              </p>
               <p id="format-foto" className="mb-4 text-sm text-ink-2">
                 Pakai foto kemasan atau desain stiker dalam format JPG, PNG, atau WebP.
               </p>

@@ -6,4 +6,5 @@ export * from './permitRules';
 export * from './ruleCatalog';
 export * from './questions';
 export * from './correctedLabel';
+export * from './labelPrintScale';
 export * from './assistant';

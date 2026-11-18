@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Icon } from '@/components/icons/icon';
 import { Segmented } from '@/components/ui/choices';
-import { Disclosure } from '@/components/ui/disclosure';
 import { TextField } from '@/components/ui/fields';
 import { ADDITIONAL_QUESTIONS, isQuestionAnswered, parseAmountInput } from '@/domain';
 import type { AdditionalAnswers, AdditionalQuestionId, ProductionEquipment } from '@/domain';
@@ -106,31 +105,26 @@ export function QuestionsStep({
 
   return (
     <div className="space-y-2.5">
-      {QUESTIONS.map((question, index) => {
+      {QUESTIONS.map((question) => {
         const hintId = `tanya-${question.id}-bantuan`;
+        const titleId = `tanya-${question.id}-judul`;
         return (
-          <Disclosure
-            key={question.id}
-            name="data-produk"
-            open={index === 0}
-            label={
-              <>
-                <span>{question.judul}</span>
-                {isQuestionAnswered(question.id, answers) && (
-                  <>
-                    <Icon name="check" size={17} className="shrink-0 text-success-ink" />
-                    <span className="sr-only">Terjawab</span>
-                  </>
-                )}
-              </>
-            }
-          >
-            <p className="font-medium text-ink">{question.pertanyaan}</p>
+          <section key={question.id} aria-labelledby={titleId} className="panel p-4 sm:p-5">
+            <h2 id={titleId} className="type-h3 flex items-center gap-2.5">
+              {question.judul}
+              {isQuestionAnswered(question.id, answers) && (
+                <>
+                  <Icon name="check" size={17} className="shrink-0 text-success-ink" />
+                  <span className="sr-only">Terjawab</span>
+                </>
+              )}
+            </h2>
+            <p className="mt-2 font-medium text-ink">{question.pertanyaan}</p>
             <p id={hintId} className="mt-1.5 mb-4 text-sm leading-relaxed text-ink-2">
               {question.bantuan}
             </p>
             {renderInput(question.id, hintId)}
-          </Disclosure>
+          </section>
         );
       })}
     </div>

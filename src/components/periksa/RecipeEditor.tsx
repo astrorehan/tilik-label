@@ -73,20 +73,25 @@ export function RecipeEditor({ value, onChange, describedBy }: RecipeEditorProps
               <label className="sr-only" htmlFor={`resep-jumlah-${row.key}`}>
                 Takaran bahan ke-{index + 1} dalam gram atau ml
               </label>
-              <input
-                id={`resep-jumlah-${row.key}`}
-                type="text"
-                inputMode="decimal"
-                value={row.jumlah}
-                placeholder="gram"
-                aria-invalid={amountInvalid || undefined}
-                onChange={(event) =>
-                  update(
-                    rows.map((r) => (r.key === row.key ? { ...r, jumlah: event.target.value } : r)),
-                  )
-                }
-                className="tabular min-h-12 w-full rounded-[14px] border border-line-strong bg-surface px-3.5 text-base text-ink placeholder:text-ink-3 focus:border-brand focus:shadow-[0_0_0_4px_var(--color-brand-soft)] focus:outline-none aria-[invalid=true]:border-danger"
-              />
+              <div className="relative">
+                <input
+                  id={`resep-jumlah-${row.key}`}
+                  type="text"
+                  inputMode="decimal"
+                  value={row.jumlah}
+                  aria-invalid={amountInvalid || undefined}
+                  aria-describedby={amountInvalid ? `resep-jumlah-${row.key}-error` : undefined}
+                  onChange={(event) =>
+                    update(
+                      rows.map((r) => (r.key === row.key ? { ...r, jumlah: event.target.value } : r)),
+                    )
+                  }
+                  className="tabular min-h-12 w-full rounded-[14px] border border-line-strong bg-surface pr-10 pl-3.5 text-base text-ink focus:border-brand focus:shadow-[0_0_0_4px_var(--color-brand-soft)] focus:outline-none aria-[invalid=true]:border-danger sm:pr-3.5"
+                />
+                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-xs text-ink-2 sm:hidden">
+                  g/ml
+                </span>
+              </div>
               <Button
                 variant="ghost"
                 size="md"
@@ -107,7 +112,7 @@ export function RecipeEditor({ value, onChange, describedBy }: RecipeEditorProps
                 <span className="sr-only">Hapus</span>
               </Button>
               {amountInvalid && (
-                <p className="col-span-3 text-xs font-semibold text-danger-ink">
+                <p id={`resep-jumlah-${row.key}-error`} className="col-span-3 text-xs font-semibold text-danger-ink">
                   Takaran harus angka, misalnya 250 atau 1,5.
                 </p>
               )}

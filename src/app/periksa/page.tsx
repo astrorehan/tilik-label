@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 export default async function PeriksaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ produk?: string | string[] }>;
+  searchParams: Promise<{ produk?: string | string[]; step?: string | string[] }>;
 }) {
-  const { produk } = await searchParams;
+  const { produk, step } = await searchParams;
   const produkId = typeof produk === 'string' && produk.length > 0 ? produk : undefined;
 
   return (
@@ -23,7 +23,7 @@ export default async function PeriksaPage({
         id="main-content"
         className="page-shell max-w-[58rem] flex-1 py-6 sm:py-10"
       >
-        <PeriksaEntryClient produkId={produkId} />
+        <PeriksaEntryClient produkId={produkId} initialStep={step === 'isi' ? 'isi' : 'hasil'} />
       </main>
 
       <Footer />

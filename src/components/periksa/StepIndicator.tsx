@@ -2,43 +2,48 @@ import { cn } from '@/lib/cn';
 
 export type FlowStep = 'mulai' | 'isi' | 'tanya' | 'hasil';
 
-const STEPS: { id: FlowStep; label: string }[] = [
-  { id: 'mulai', label: 'Tambah label' },
-  { id: 'isi', label: 'Isi label' },
-  { id: 'tanya', label: 'Data produk' },
-  { id: 'hasil', label: 'Hasil' },
-];
+const STEP_LABELS: Record<FlowStep, string> = {
+  mulai: 'Tambah label',
+  isi: 'Isi label',
+  tanya: 'Data produk',
+  hasil: 'Hasil',
+};
+
+export const FLOW_STEPS: readonly FlowStep[] = ['mulai', 'isi', 'tanya', 'hasil'];
 
 export function StepIndicator({
   current,
+  farthestStep,
   onSelect,
 }: {
   current: FlowStep;
+  farthestStep: FlowStep;
   onSelect: (step: FlowStep) => void;
 }) {
-  const currentIndex = STEPS.findIndex((step) => step.id === current);
+  const currentIndex = FLOW_STEPS.indexOf(current);
+  const farthestIndex = FLOW_STEPS.indexOf(farthestStep);
 
   return (
-    <nav aria-label={`Pemeriksaan, langkah ${currentIndex + 1} dari ${STEPS.length}`}>
+    <nav aria-label={`Pemeriksaan, langkah ${currentIndex + 1} dari ${FLOW_STEPS.length}`}>
       <ol className="grid grid-cols-4 gap-2 sm:gap-3">
-        {STEPS.map((step, index) => {
-          const active = step.id === current;
-          const done = index < currentIndex;
+        {FLOW_STEPS.map((step, index) => {
+          const active = step === current;
+          const available = !active && index <= farthestIndex;
           const className = cn(
             'flex min-h-11 w-full flex-col gap-2 rounded-lg text-left text-xs leading-tight before:h-[3px] before:w-full before:rounded-full sm:text-sm',
             active && 'font-bold text-ink before:bg-brand',
-            done && 'font-semibold text-brand-deep before:bg-brand-soft hover:underline hover:before:bg-brand',
-            !active && !done && 'text-ink-3 before:bg-line',
+            available && 'font-semibold text-brand-deep before:bg-brand-soft hover:underline hover:before:bg-brand',
+            !active && !available && 'text-ink-3 before:bg-line',
           );
 
           return (
-            <li key={step.id} aria-current={active ? 'step' : undefined}>
-              {done ? (
-                <button type="button" className={className} onClick={() => onSelect(step.id)}>
-                  {step.label}
+            <li key={step} aria-current={active ? 'step' : undefined}>
+              {available ? (
+                <button type="button" className={className} onClick={() => onSelect(step)}>
+                  {STEP_LABELS[step]}
                 </button>
               ) : (
-                <span className={className}>{step.label}</span>
+                <span className={className}>{STEP_LABELS[step]}</span>
               )}
             </li>
           );

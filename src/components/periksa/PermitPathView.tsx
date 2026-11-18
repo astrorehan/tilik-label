@@ -12,10 +12,19 @@ const IMPACT_LOOK: Record<PermitRuleImpact, { label: string; tone: PillTone }> =
   perlu_dicek: { label: 'Perlu dicek', tone: 'warning' },
 };
 
-export function PermitPathView({ result, children }: { result: PermitPathResult; children?: ReactNode }) {
+export function PermitPathView({
+  result,
+  defaultOpen,
+  children,
+}: {
+  result: PermitPathResult;
+  defaultOpen?: boolean;
+  children?: ReactNode;
+}) {
   return (
     <Disclosure
       icon="stamp"
+      open={defaultOpen}
       label={
         <span>
           <span className="block">Jalur izin</span>

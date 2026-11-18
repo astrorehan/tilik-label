@@ -320,6 +320,110 @@
     outline-offset: -3px;
   }
 
+  .tilik-mascot {
+    display: block;
+    overflow: visible;
+  }
+
+  .tilik-mascot[data-animated] {
+    --tilik-motion: tilik-mascot-float;
+    --tilik-duration: 4.6s;
+  }
+
+  .tilik-mascot[data-animated][data-mood='thinking'] {
+    --tilik-motion: tilik-mascot-tilt;
+    --tilik-duration: 2.4s;
+  }
+
+  .tilik-mascot[data-animated][data-mood='explaining'] {
+    --tilik-motion: tilik-mascot-nod;
+    --tilik-duration: 3.2s;
+  }
+
+  .tilik-mascot[data-animated][data-mood='alert'] {
+    --tilik-motion: tilik-mascot-attend;
+    --tilik-duration: 3.8s;
+  }
+
+  .tilik-mascot[data-animated][data-mood='happy'] {
+    --tilik-motion: tilik-mascot-bounce;
+    --tilik-duration: 3.5s;
+  }
+
+  .tilik-mascot[data-animated] .tilik-mascot__body {
+    transform-origin: 44px 66px;
+    animation: var(--tilik-motion) var(--tilik-duration) ease-in-out infinite;
+  }
+
+  .tilik-mascot[data-animated] .tilik-mascot__shadow {
+    transform-origin: 46px 86px;
+    animation: tilik-mascot-shadow var(--tilik-duration) ease-in-out infinite;
+  }
+
+  .tilik-mascot[data-animated]:not([data-mood='happy']) .tilik-mascot__eyes {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: tilik-mascot-blink 5.6s ease-in-out infinite;
+  }
+
+  .tilik-mascot[data-animated][data-mood='thinking'] .tilik-mascot__lens {
+    transform-origin: 70px 56px;
+    animation: tilik-mascot-scan 2.4s ease-in-out infinite;
+  }
+
+  .tilik-mascot[data-animated]:is([data-mood='explaining'], [data-mood='happy']) .tilik-mascot__wave {
+    transform-origin: 17px 47px;
+    animation: tilik-mascot-wave var(--tilik-duration) ease-in-out infinite;
+  }
+
+  @keyframes tilik-mascot-float {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-4px) rotate(1deg); }
+  }
+
+  @keyframes tilik-mascot-shadow {
+    0%, 100% { transform: scale(1); opacity: 0.22; }
+    50% { transform: scale(0.84); opacity: 0.14; }
+  }
+
+  @keyframes tilik-mascot-blink {
+    0%, 40%, 46%, 84%, 90%, 100% { transform: scaleY(1); }
+    43%, 87% { transform: scaleY(0.1); }
+  }
+
+  @keyframes tilik-mascot-tilt {
+    0%, 100% { transform: rotate(-4deg); }
+    55% { transform: translateY(-3px) rotate(4deg); }
+  }
+
+  @keyframes tilik-mascot-scan {
+    0%, 100% { transform: translate(0, 1px) rotate(4deg); }
+    55% { transform: translate(-5px, -10px) rotate(-14deg); }
+  }
+
+  @keyframes tilik-mascot-nod {
+    0%, 68%, 100% { transform: translateY(-1px) rotate(-3deg); }
+    32% { transform: translateY(2px) rotate(5deg); }
+  }
+
+  @keyframes tilik-mascot-wave {
+    0%, 62%, 100% { transform: rotate(0); }
+    18%, 43% { transform: rotate(26deg); }
+    30% { transform: rotate(10deg); }
+  }
+
+  @keyframes tilik-mascot-attend {
+    0%, 100% { transform: translateY(0) rotate(3deg); }
+    46% { transform: translateY(-4px) rotate(-4deg); }
+    61% { transform: translateY(-2px) rotate(1deg); }
+  }
+
+  @keyframes tilik-mascot-bounce {
+    0%, 62%, 100% { transform: translateY(0) rotate(-2deg); }
+    26% { transform: translateY(-7px) rotate(4deg); }
+    45% { transform: translateY(-2px) rotate(1deg); }
+  }
+
   @media (min-width: 56.25rem) {
     .home-hero {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -331,15 +435,20 @@
   }
 }
 
-/* Label perbaikan dan lembar ringkasan (/cetak). Hitam di atas putih agar jelas saat dicetak. */
+/* Label perbaikan berskala fisik (satuan mm) dan lembar ringkasan (/cetak). */
 @layer components {
   .label-cetak {
-    border: 2px solid #000;
+    box-sizing: border-box;
+    width: var(--stiker-lebar, 90mm);
+    min-height: var(--stiker-tinggi, 65mm);
+    border: 0.4mm solid #000;
     background: #fff;
     color: #000;
-    padding: 20px;
-    font-size: 1rem;
-    line-height: 1.5;
+    padding: 3mm;
+    font-family: var(--font-sans), Arial, sans-serif;
+    /* 2.15mm menjamin tinggi huruf kecil "o" >= 1.0 mm pada Atkinson Hyperlegible Next (Pasal 9 ayat 2) */
+    font-size: 2.15mm;
+    line-height: 2.9mm;
     overflow-wrap: anywhere;
   }
 
@@ -347,14 +456,37 @@
     font-weight: 800;
   }
 
+  /* 4.05mm menjamin tinggi huruf kecil "o" >= 2.0 mm untuk nama pangan & peringatan alergen (Pasal 9 ayat 3 & 4) */
   .label-cetak-nama {
-    font-size: 1.5rem;
+    font-size: 4.05mm;
     font-weight: 800;
-    line-height: 1.2;
+    line-height: 5mm;
+  }
+
+  .label-cetak-peringatan {
+    font-size: 4.05mm;
+    font-weight: 700;
+    line-height: 5mm;
   }
 
   .label-cetak > * + * {
-    margin-top: 10px;
+    margin-top: 1.2mm;
+  }
+
+  .skala-10mm-bar {
+    display: inline-block;
+    width: 10mm;
+    height: 2.5mm;
+    border-left: 0.35mm solid #000;
+    border-right: 0.35mm solid #000;
+    border-bottom: 0.35mm solid #000;
+    background: linear-gradient(
+      90deg,
+      transparent 4.85mm,
+      #000 4.85mm,
+      #000 5.15mm,
+      transparent 5.15mm
+    );
   }
 
   .ringkasan-cetak {
@@ -363,16 +495,28 @@
   }
 }
 
+@media screen {
+  .label-cetak {
+    zoom: var(--stiker-zoom, 1);
+  }
+}
+
 @media print {
   @page {
     size: A4;
-    margin: 15mm;
+    margin: 12mm;
   }
 
   html,
   body {
     background: #fff !important;
     color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body:has(.cetak-root) {
+    min-height: 0;
   }
 
   /* Navbar dan Footer ada langsung di bawah pembungkus halaman. */
@@ -399,7 +543,11 @@
     display: none !important;
   }
 
-  /* Label yang belum lengkap tidak pernah tercetak, termasuk lewat Ctrl+P. */
+  html[data-cetak='label'] [data-cetak-bagian='label'] {
+    page: stiker;
+  }
+
+  /* Label tanpa data lengkap atau ukuran valid tidak ikut tercetak, termasuk lewat Ctrl+P. */
   [data-cetak-bagian='label'][data-siap='false'] {
     display: none !important;
   }
@@ -414,13 +562,7 @@
   }
 
   .label-cetak {
-    font-size: 12pt;
     break-inside: avoid;
-    max-width: 100%;
-  }
-
-  .label-cetak-nama {
-    font-size: 18pt;
   }
 
   .ringkasan-cetak {

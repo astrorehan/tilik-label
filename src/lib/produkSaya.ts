@@ -73,7 +73,7 @@ function isIsoDate(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && !Number.isNaN(Date.parse(value));
 }
 
-function parseLabel(raw: unknown): LabelData | null {
+export function parseLabel(raw: unknown): LabelData | null {
   if (!isRecord(raw)) return null;
   const label: Record<string, unknown> = {};
   // Bidang teks yang hilang atau salah tipe diisi kosong supaya produk tetap terbuka.
@@ -100,7 +100,7 @@ function nullableBoolean(value: unknown): boolean | null | undefined {
   return typeof value === 'boolean' ? value : undefined;
 }
 
-function parseAnswers(raw: unknown): AdditionalAnswers | null {
+export function parseAnswers(raw: unknown): AdditionalAnswers | null {
   if (!isRecord(raw) || !Array.isArray(raw.resep)) return null;
 
   const resep: RecipeIngredient[] = [];
@@ -246,6 +246,17 @@ export function upsertProduct(
 
 export function removeProduct(list: readonly SavedProduct[], id: string): SavedProduct[] {
   return list.filter((item) => item.id !== id);
+}
+
+/** True bila isi label dan jawaban sama persis, supaya tidak menulis ulang tanpa perubahan. */
+export function isSameProductData(
+  a: Pick<ProductInput, 'label' | 'answers'>,
+  b: Pick<ProductInput, 'label' | 'answers'>,
+): boolean {
+  return (
+    JSON.stringify(a.label) === JSON.stringify(b.label) &&
+    JSON.stringify(a.answers) === JSON.stringify(b.answers)
+  );
 }
 
 /** Menghitung ulang status dengan aturan terbaru dari masukan mentah. */

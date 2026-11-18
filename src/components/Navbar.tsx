@@ -11,6 +11,7 @@ import { cn } from '@/lib/cn';
 const NAV_LINKS = [
   { href: '/contoh', label: 'Contoh hasil' },
   { href: '/produk', label: 'Produk saya' },
+  { href: '/nilai-gizi', label: 'Nilai gizi' },
   { href: '/aturan', label: 'Panduan' },
 ];
 

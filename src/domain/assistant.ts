@@ -41,6 +41,46 @@ export type AssistantRequest = {
   ruleId?: AnyRuleId;
 } & ({ pertanyaanId: QuickQuestionId } | { pertanyaanBebas: string });
 
+type AssistantAnswerBlock =
+  | { type: 'paragraph' | 'example'; text: string }
+  | { type: 'bullets'; items: string[] }
+  | { type: 'numbered'; start: number; items: string[] };
+
+/** Membaca baris teks jawaban sebagai paragraf, daftar, atau contoh penulisan. */
+export function formatAssistantAnswer(answer: string): AssistantAnswerBlock[] {
+  const blocks: AssistantAnswerBlock[] = [];
+
+  for (const rawLine of answer.split(/\r\n?|\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const previous = blocks.at(-1);
+    const example = /^contoh(?: penulisan)?\s*:\s*(.*)$/i.exec(line);
+    const bullet = /^(?:[-–—]\s+|•\s*)(.+)$/.exec(line);
+    const numbered = /^(\d{1,3})[.)]\s+(.+)$/.exec(line);
+
+    if (example?.[1] !== undefined) {
+      blocks.push({ type: 'example', text: example[1] });
+    } else if (previous?.type === 'example' && !previous.text) {
+      previous.text = line;
+    } else if (bullet?.[1]) {
+      if (previous?.type === 'bullets') previous.items.push(bullet[1]);
+      else blocks.push({ type: 'bullets', items: [bullet[1]] });
+    } else if (numbered?.[2]) {
+      const number = Number(numbered[1]);
+      if (previous?.type === 'numbered' && number === previous.start + previous.items.length) {
+        previous.items.push(numbered[2]);
+      } else {
+        blocks.push({ type: 'numbered', start: number, items: [numbered[2]] });
+      }
+    } else {
+      blocks.push({ type: 'paragraph', text: line });
+    }
+  }
+
+  return blocks.filter((block) => block.type !== 'example' || block.text);
+}
+
 const LABEL_TEXT_KEYS: Array<Exclude<LabelFieldKey, 'pernyataanLain'>> = [
   'namaProduk',
   'daftarBahanTeks',
@@ -276,4 +316,4 @@ export function isQuestionInScope(question: string, ruleId?: AnyRuleId): boolean
 }
 
 export const OUT_OF_SCOPE_ANSWER =
-  'Maaf, pertanyaan itu di luar cakupan asisten ini. Asisten hanya menjelaskan hasil pemeriksaan label di halaman ini. Untuk hal lain, tanyakan ke Dinas Kesehatan setempat atau baca teks resmi Peraturan BPOM.';
+  'Tilik bisa membantu menjelaskan hasil pemeriksaan label ini. Untuk pertanyaan lain, hubungi Dinas Kesehatan setempat atau baca aturan resmi BPOM.';

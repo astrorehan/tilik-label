@@ -30,7 +30,7 @@ const PENANDA_TONE: Record<CaraCekPenanda, PillTone> = {
 
 function RuleSection({ section }: { section: RuleCatalogSection }) {
   return (
-    <Disclosure label={section.judul} icon="document">
+    <Disclosure label={section.judul} icon="document" open>
       <p className="text-sm text-ink-2">{section.tentang}</p>
       <a
         href={section.tautan}
@@ -73,7 +73,7 @@ export default function AturanPage() {
 
         <div className="space-y-2.5">
           {RULE_CATALOG.map((section) => <RuleSection key={section.kunci} section={section} />)}
-          <Disclosure label="Batas pemeriksaan" icon="info">
+          <Disclosure label="Batas pemeriksaan" icon="info" open>
             <ul className="list-disc space-y-2 pl-5 text-sm text-ink-2">
               {HAL_TIDAK_DIPERIKSA.map((item) => <li key={item}>{item}</li>)}
             </ul>
