@@ -17,6 +17,7 @@ import {
   type LabelFieldKey,
 } from '@/domain';
 import { declaredShelfLife } from '@/domain/labelEvidence';
+import type { SampleLabelCase } from '@/domain/sampleLabels';
 import { ACCEPTED_IMAGE_TYPES, type PreparedImage } from '@/lib/image/prepareImage';
 import {
   clearPeriksaDraft,
@@ -40,6 +41,7 @@ import { LabelStage } from './LabelStage';
 import { QuestionsStep } from './QuestionsStep';
 import { StartStep } from './StartStep';
 import { FLOW_STEPS, StepIndicator, type FlowStep } from './StepIndicator';
+import { TemplateOffer } from './TemplateOffer';
 import { useImagePicker } from './useImagePicker';
 
 const READ_TIMEOUT_MS = 35_000;
@@ -70,6 +72,7 @@ const TEXT_FIELDS: Exclude<LabelFieldKey, 'pernyataanLain'>[] = [
 
 type ReadNotice =
   | { kind: 'dibaca'; terisi: number; tidakTerbaca: number }
+  | { kind: 'contoh'; terisi: number }
   | { kind: 'gagal'; body?: string }
   | { kind: 'menunggu' };
 
@@ -107,6 +110,17 @@ function filledFields(label: LabelData): Set<LabelFieldKey> {
   return filled;
 }
 
+/** Data kemasan contoh yang ditawarkan sebagai isi cepat di mode juri. */
+export type JudgeTemplate = Pick<SampleLabelCase, 'id' | 'label' | 'answers'>;
+
+interface ActiveTemplate {
+  nama: string;
+  label: LabelData;
+  answers: AdditionalAnswers;
+}
+
+const sameData = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
 export interface PeriksaFlowInitial {
   label?: LabelData;
   answers?: AdditionalAnswers;
@@ -121,7 +135,7 @@ export function PeriksaFlowClient({
   persistDraft = false,
   restoredFromDraft = false,
   onResetDraft,
-  onDemoPrint,
+  judgeTemplates,
 }: {
   initial?: PeriksaFlowInitial;
   productId?: string;
@@ -129,7 +143,11 @@ export function PeriksaFlowClient({
   persistDraft?: boolean;
   restoredFromDraft?: boolean;
   onResetDraft?: () => void;
-  onDemoPrint?: (label: LabelData, answers: AdditionalAnswers) => void;
+  /**
+   * Mode juri. Formulirnya tetap sama; bila juri memilih kemasan contoh, tiap
+   * langkah menawarkan isi cepat dari data kemasan itu.
+   */
+  judgeTemplates?: JudgeTemplate[];
 }) {
   const [productId, setProductId] = useState(initialProductId);
   const [step, setStep] = useState<FlowStep>(initial?.step ?? 'mulai');
@@ -141,6 +159,7 @@ export function PeriksaFlowClient({
   const [pendingRead, setPendingRead] = useState<LabelData | null>(null);
   const [revealFields, setRevealFields] = useState<ReadonlySet<LabelFieldKey> | null>(null);
   const [questionToOpen, setQuestionToOpen] = useState<AdditionalQuestionId>();
+  const [template, setTemplate] = useState<ActiveTemplate | null>(null);
   const readRequestRef = useRef<{ controller: AbortController; timer: ReturnType<typeof setTimeout> } | null>(null);
   const [label, setLabel] = useState(() => initial?.label ?? createEmptyLabelData());
   const [answers, setAnswers] = useState(() => initial?.answers ?? createEmptyAnswers());
@@ -178,9 +197,11 @@ export function PeriksaFlowClient({
     setReadCancelled(false);
   };
 
-  const { picker, attachFileInput } = useImagePicker((next) => {
+  const { picker, attachFileInput } = useImagePicker((next, sample) => {
     setImage(next);
     clearRead();
+    const found = sample ? judgeTemplates?.find((item) => item.id === sample.caseId) : undefined;
+    setTemplate(sample && found ? { nama: sample.nama, label: found.label, answers: found.answers } : null);
   });
 
   useEffect(() => () => {
@@ -332,13 +353,13 @@ export function PeriksaFlowClient({
   // Hasil yang dibuka langsung (draf dipulihkan) atau dibetulkan di halaman hasil disimpan
   // otomatis ke Produk saya, tanpa menggandakan entri yang sudah ada.
   useEffect(() => {
-    if (onDemoPrint || step !== 'hasil' || resultSaveState.kind !== 'idle') return;
+    if (step !== 'hasil' || resultSaveState.kind !== 'idle') return;
     if (!hasMeaningfulCheckData(label, answers)) return;
     const timer = setTimeout(() => {
       autoSaveResult(label, answers, productId);
     }, RESULT_AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [onDemoPrint, step, resultSaveState.kind, label, answers, productId, autoSaveResult]);
+  }, [step, resultSaveState.kind, label, answers, productId, autoSaveResult]);
 
   const cancelRead = () => {
     const request = readRequestRef.current;
@@ -356,7 +377,7 @@ export function PeriksaFlowClient({
     const nextFarthest =
       FLOW_STEPS.indexOf(next) > FLOW_STEPS.indexOf(farthestStep) ? next : farthestStep;
     let nextProductId = productId;
-    if (next === 'hasil' && !onDemoPrint) {
+    if (next === 'hasil') {
       nextProductId = autoSaveResult(label, answers, productId);
     }
     heldHeight.current?.release();
@@ -396,6 +417,17 @@ export function PeriksaFlowClient({
     });
   };
 
+  const applyTemplateLabel = () => {
+    if (!template) return;
+    cancelRead();
+    const next = structuredClone(template.label);
+    setPendingRead(null);
+    setReadCancelled(false);
+    setLabel(next);
+    setRevealFields(filledFields(next));
+    setReadNotice({ kind: 'contoh', terisi: filledFields(next).size });
+  };
+
   const runRead = async (dataUrl: string) => {
     if (readRequestRef.current) return;
     const controller = new AbortController();
@@ -430,7 +462,13 @@ export function PeriksaFlowClient({
       ? draftSaveStatus
       : null;
 
-  const guide = guideFor(step, { image, reading, cameraOpen: picker.cameraOpen, readNotice });
+  const guide = guideFor(step, {
+    image,
+    reading,
+    cameraOpen: picker.cameraOpen,
+    readNotice,
+    hasTemplate: Boolean(template),
+  });
 
   const fileInput = (
     <input
@@ -496,7 +534,6 @@ export function PeriksaFlowClient({
               goToStep('tanya');
               setQuestionToOpen(question);
             }}
-            onDemoPrint={onDemoPrint}
           />
         </div>
       </div>
@@ -557,6 +594,7 @@ export function PeriksaFlowClient({
             onReplace={() => {
               cancelRead();
               setImage(null);
+              setTemplate(null);
               clearRead();
             }}
             onAddPhoto={() => goToStep('mulai')}
@@ -579,6 +617,7 @@ export function PeriksaFlowClient({
                 onContinue={() => goToStep('isi')}
                 onWithoutLabel={() => {
                   setImage(null);
+                  setTemplate(null);
                   clearRead();
                   goToStep('isi');
                 }}
@@ -588,6 +627,16 @@ export function PeriksaFlowClient({
                 onRead={() => {
                   if (image) void runRead(image.dataUrl);
                 }}
+                judgeMode={Boolean(judgeTemplates)}
+                templateName={template?.nama}
+                onUseTemplate={
+                  template
+                    ? () => {
+                        applyTemplateLabel();
+                        goToStep('isi');
+                      }
+                    : undefined
+                }
               />
             )}
 
@@ -633,6 +682,28 @@ export function PeriksaFlowClient({
                     {readNotice.tidakTerbaca > 0 ? `, ${readNotice.tidakTerbaca} tidak terbaca` : ''}.
                   </p>
                 )}
+                {readNotice?.kind === 'contoh' && (
+                  <p role="status" className="sr-only">
+                    {readNotice.terisi} kolom diisi dari data kemasan contoh.
+                  </p>
+                )}
+                {template && (
+                  sameData(label, template.label) ? (
+                    <TemplateOffer done title={`Kolom terisi dari kemasan contoh ${template.nama}`}>
+                      Coba ubah satu kolom, misalnya kosongkan kedaluwarsa, lalu lihat hasil pemeriksaannya ikut berubah.
+                    </TemplateOffer>
+                  ) : (
+                    <TemplateOffer
+                      title={`Isi label contoh ${template.nama} siap dipakai`}
+                      actionLabel="Isi semua kolom"
+                      onUse={applyTemplateLabel}
+                    >
+                      {hasTypedLabel(label)
+                        ? 'Semua kolom diganti dengan tulisan di kemasan contoh.'
+                        : 'Semua kolom diisi sesuai tulisan di kemasan contoh, sekali klik.'}
+                    </TemplateOffer>
+                  )
+                )}
                 <LabelForm
                   value={label}
                   onChange={setLabel}
@@ -656,6 +727,7 @@ export function PeriksaFlowClient({
                 onDone={() => goToStep('hasil')}
                 initialQuestion={questionToOpen}
                 shelfLifeFromLabel={declaredShelfLife(label)}
+                template={template ? { nama: template.nama, answers: template.answers } : undefined}
               />
             )}
           </div>
@@ -672,16 +744,21 @@ function guideFor(
     reading,
     cameraOpen,
     readNotice,
+    hasTemplate,
   }: {
     image: PreparedImage | null;
     reading: boolean;
     cameraOpen: boolean;
     readNotice: ReadNotice | null;
+    hasTemplate: boolean;
   },
 ): { mood: TilikMood; text: string; key: string } {
   if (step === 'mulai') {
     if (reading) {
       return { mood: 'thinking', key: 'membaca', text: 'Sebentar ya, aku sedang membaca tulisan di fotomu.' };
+    }
+    if (image && hasTemplate) {
+      return { mood: 'happy', key: 'foto-contoh', text: 'Ini kemasan contoh. Mau kubaca fotonya, atau langsung isi cepat dengan datanya?' };
     }
     if (image) {
       return image.mutu.baik
@@ -700,6 +777,9 @@ function guideFor(
   if (step === 'isi') {
     if (readNotice?.kind === 'gagal') {
       return { mood: 'alert', key: 'gagal', text: 'Maaf, fotonya belum bisa kubaca. Ketik isinya di sini, nanti tetap kuperiksa.' };
+    }
+    if (readNotice?.kind === 'contoh') {
+      return { mood: 'happy', key: 'contoh', text: `Aku sudah mengisi ${readNotice.terisi} kolom dari kemasan contoh. Ubah bebas, nanti pemeriksaannya ikut menyesuaikan.` };
     }
     if (readNotice?.kind === 'menunggu') {
       return { mood: 'explaining', key: 'menunggu', text: 'Kamu sudah punya isian. Mau pakai hasil bacaanku, atau tetap isianmu?' };

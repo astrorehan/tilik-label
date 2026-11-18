@@ -4,12 +4,18 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { Icon } from '@/components/icons/icon';
 import { PermitPathView } from '@/components/periksa/PermitPathView';
-import { SAMPLE_PHOTOS, samplePhotoUrl } from '@/components/periksa/SamplePhotos';
+import { SAMPLE_PHOTOS, samplePhotoDisplayUrl } from '@/components/periksa/SamplePhotos';
 import { Disclosure } from '@/components/ui/disclosure';
-import { evaluateLabelRules, evaluatePermitPath } from '@/domain';
+import type { LabelCheckReport, PermitPathResult } from '@/domain';
 import type { SampleLabelCase } from '@/domain/sampleLabels';
 import { cn } from '@/lib/cn';
 import { LabelReportView } from './LabelReportView';
+
+export interface SampleSelectorEntry {
+  sample: SampleLabelCase;
+  report: LabelCheckReport;
+  permit: PermitPathResult;
+}
 
 function SampleData({ sample }: { sample: SampleLabelCase }) {
   const { label, answers } = sample;
@@ -76,21 +82,20 @@ function SampleData({ sample }: { sample: SampleLabelCase }) {
   );
 }
 
-export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
-  const [selectedId, setSelectedId] = useState(cases[0]?.id);
-  const sample = cases.find((item) => item.id === selectedId) ?? cases[0];
-  if (!sample) return null;
+export function SampleSelectorClient({ entries }: { entries: SampleSelectorEntry[] }) {
+  const [selectedId, setSelectedId] = useState(entries[0]?.sample.id);
+  const entry = entries.find((item) => item.sample.id === selectedId) ?? entries[0];
+  if (!entry) return null;
 
+  const { sample, report, permit } = entry;
   const photo = SAMPLE_PHOTOS.find((item) => item.caseId === sample.id);
-  const report = evaluateLabelRules(sample.label, sample.answers);
-  const permit = evaluatePermitPath(sample.label, sample.answers);
 
   return (
     <div className="space-y-5">
       <div role="group" aria-label="Pilih contoh kemasan" className="grid grid-cols-3 gap-2 sm:gap-3">
-        {cases.map((item) => {
+        {entries.map(({ sample: item }) => {
           const active = item.id === sample.id;
-          const choice = SAMPLE_PHOTOS.find((photo) => photo.caseId === item.id);
+          const choice = SAMPLE_PHOTOS.find((option) => option.caseId === item.id);
           return (
             <button
               key={item.id}
@@ -104,10 +109,11 @@ export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
             >
               {choice && (
                 <Image
-                  src={samplePhotoUrl(choice)}
+                  src={samplePhotoDisplayUrl(choice, 'thumb')}
                   alt=""
-                  width={1080}
-                  height={1440}
+                  width={120}
+                  height={160}
+                  unoptimized
                   sizes="48px"
                   className="size-11 rounded-xl object-cover sm:size-12"
                 />
@@ -124,12 +130,14 @@ export function SampleSelectorClient({ cases }: { cases: SampleLabelCase[] }) {
           {photo && (
             <figure className="panel p-3.5 sm:p-4">
               <Image
-                src={samplePhotoUrl(photo)}
+                src={samplePhotoDisplayUrl(photo, 'view')}
                 alt={`Ilustrasi label ${sample.label.namaProduk}`}
-                width={1080}
-                height={1440}
-                loading="eager"
-                sizes="(min-width: 1200px) 380px, (min-width: 768px) 35vw, 90vw"
+                width={540}
+                height={720}
+                preload
+                unoptimized
+                fetchPriority="high"
+                sizes="(min-width: 1200px) 380px, (min-width: 768px) 35vw, 340px"
                 className="max-h-[32rem] w-full rounded-[16px] bg-paper object-contain"
               />
               <figcaption className="mt-3 text-sm text-ink-2">{sample.ringkasanSingkat}</figcaption>

@@ -1,10 +1,14 @@
+import dynamic from 'next/dynamic';
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import type { LabelCheckReport, LabelRuleId } from '@/domain';
 import type { LabelEdit } from '@/domain/tilikActions';
-import { AssistantChat, type AssistantInput } from './AssistantChat';
-import { AssistantDrawer, type AssistantLaunch } from './AssistantDrawer';
+import type { AssistantInput } from './AssistantChat';
+import type { AssistantLaunch } from './AssistantDrawer';
 import { TilikMascot } from './TilikMascot';
+
+const AssistantChat = dynamic(() => import('./AssistantChat').then((mod) => mod.AssistantChat));
+const AssistantDrawer = dynamic(() => import('./AssistantDrawer').then((mod) => mod.AssistantDrawer));
 
 type OpenReportAssistant = (opener: HTMLButtonElement, ruleId?: LabelRuleId) => void;
 

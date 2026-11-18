@@ -1,13 +1,20 @@
 import type { Metadata } from 'next';
 import { Footer } from '@/components/Footer';
 import { Navbar } from '@/components/Navbar';
-import { SampleSelectorClient } from '@/components/SampleSelectorClient';
+import { SampleSelectorClient, type SampleSelectorEntry } from '@/components/SampleSelectorClient';
 import { ButtonLink } from '@/components/ui/button';
+import { evaluateLabelRules, evaluatePermitPath } from '@/domain';
 import { SAMPLE_LABEL_CASES } from '@/domain/sampleLabels';
 
 export const metadata: Metadata = { title: 'Contoh pemeriksaan' };
 
 export default function ContohPage() {
+  const entries: SampleSelectorEntry[] = SAMPLE_LABEL_CASES.map((sample) => ({
+    sample,
+    report: evaluateLabelRules(sample.label, sample.answers),
+    permit: evaluatePermitPath(sample.label, sample.answers),
+  }));
+
   return (
     <div className="flex min-h-dvh flex-col">
       <Navbar />
@@ -19,7 +26,7 @@ export default function ContohPage() {
           </div>
           <ButtonLink href="/juri" size="md" variant="secondary" iconAfter="arrowRight">Demo juri</ButtonLink>
         </header>
-        <SampleSelectorClient cases={SAMPLE_LABEL_CASES} />
+        <SampleSelectorClient entries={entries} />
       </main>
       <Footer />
     </div>

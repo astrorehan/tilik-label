@@ -108,7 +108,6 @@ export function ResultBoard({
   onChangeLabel,
   onEditLabel,
   onEditAnswers,
-  onDemoPrint,
 }: {
   label: LabelData;
   answers: AdditionalAnswers;
@@ -120,7 +119,6 @@ export function ResultBoard({
   onChangeLabel: (next: LabelData) => void;
   onEditLabel: (field?: LabelFieldKey) => void;
   onEditAnswers: (question?: AdditionalQuestionId) => void;
-  onDemoPrint?: (label: LabelData, answers: AdditionalAnswers) => void;
 }) {
   const prepared = useMemo(() => prepareForCheck(label, answers), [label, answers]);
   const review = useMemo(() => reviewLabel(prepared.label, prepared.answers), [prepared]);
@@ -129,7 +127,6 @@ export function ResultBoard({
     () => ({ label: prepared.label, answers: prepared.answers }),
     [prepared],
   );
-  const liveAssistant = onDemoPrint ? undefined : assistantInput;
   const productTitle = prepared.label.namaProduk.trim() || 'Label tanpa nama';
   const { groups } = review;
   const { numbers, marks } = useMemo(() => buildRowMarks(review), [review]);
@@ -141,11 +138,7 @@ export function ResultBoard({
     focusInView(document.getElementById('label-perbaikan-judul'));
   };
 
-  const printButton = (text: string, variant: ButtonVariant, size: 'md' | 'lg') => onDemoPrint ? (
-    <Button variant={variant} size={size} icon="printer" onClick={() => onDemoPrint(prepared.label, prepared.answers)}>
-      {text}
-    </Button>
-  ) : (
+  const printButton = (text: string, variant: ButtonVariant, size: 'md' | 'lg') => (
     <BukaCetakButton
       label={prepared.label}
       answers={prepared.answers}
@@ -162,12 +155,12 @@ export function ResultBoard({
     <ReportAssistant
       report={review.report}
       productTitle={productTitle}
-      input={liveAssistant}
-      onApplyLabelEdit={liveAssistant ? (edit) => onChangeLabel(applyLabelEdit(label, edit)) : undefined}
+      input={assistantInput}
+      onApplyLabelEdit={(edit) => onChangeLabel(applyLabelEdit(label, edit))}
     >
       <ResultHero
         review={review}
-        assistantInput={liveAssistant}
+        assistantInput={assistantInput}
         productTitle={productTitle}
         image={image}
         actions={
@@ -183,7 +176,7 @@ export function ResultBoard({
             </Button>
           </>
         }
-        status={onDemoPrint ? null : <SaveStatus saveStatus={saveStatus} prepared={prepared} productId={productId} onSaved={onSaved} onSaveStatusChange={onSaveStatusChange} />}
+        status={<SaveStatus saveStatus={saveStatus} prepared={prepared} productId={productId} onSaved={onSaved} onSaveStatusChange={onSaveStatusChange} />}
       />
 
       {review.report.alergenTerdeteksi.length > 0 && (
@@ -207,7 +200,7 @@ export function ResultBoard({
             onEditAnswers={onEditAnswers}
             onFinish={scrollToLabel}
           />
-          {liveAssistant && <ClaimSuggestions label={label} answers={prepared.answers} onChangeLabel={onChangeLabel} />}
+          <ClaimSuggestions label={label} answers={prepared.answers} onChangeLabel={onChangeLabel} />
         </div>
 
         <aside

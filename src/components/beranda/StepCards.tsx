@@ -117,12 +117,16 @@ function StepCard({ step, k, dealt }: { step: Step; k: number; dealt: boolean })
               <h3 className="font-label text-[26px] font-semibold leading-[1.1] tracking-[-0.03em] text-ink">{step.title}</h3>
               <p className="mt-1.5 text-sm leading-snug text-ink-2">{step.lead}</p>
             </div>
-            <div className="absolute inset-x-0 bottom-0 top-[29%]" aria-hidden="true">
-              <Scene hot={hot} />
-            </div>
-            <div className={`absolute z-10 ${step.mascot}`} aria-hidden="true">
-              <TilikMascot mood={hot ? step.mood[1] : step.mood[0]} size={84} />
-            </div>
+            {dealt && (
+              <>
+                <div className="absolute inset-x-0 bottom-0 top-[29%]" aria-hidden="true">
+                  <Scene hot={hot} />
+                </div>
+                <div className={`absolute z-10 ${step.mascot}`} aria-hidden="true">
+                  <TilikMascot mood={hot ? step.mood[1] : step.mood[0]} size={84} />
+                </div>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-3 px-1.5 pb-1">
             <span
@@ -139,16 +143,18 @@ function StepCard({ step, k, dealt }: { step: Step; k: number; dealt: boolean })
           </div>
         </article>
 
-        <div
-          className="step-card-back step-face-back pointer-events-none absolute inset-0 grid place-items-center rounded-[30px] [transform:rotateY(180deg)]"
-          style={{ animationDelay: `${DEAL_DELAY(k)}s` }}
-          aria-hidden="true"
-        >
-          <div className="step-card-emboss flex flex-col items-center gap-3">
-            <LogoMark className="h-auto w-28" />
-            <span className="font-label text-lg font-bold tracking-[-0.03em]">Tilik Label</span>
+        {dealt && (
+          <div
+            className="step-card-back step-face-back pointer-events-none absolute inset-0 grid place-items-center rounded-[30px] [transform:rotateY(180deg)]"
+            style={{ animationDelay: `${DEAL_DELAY(k)}s` }}
+            aria-hidden="true"
+          >
+            <div className="step-card-emboss flex flex-col items-center gap-3">
+              <LogoMark className="h-auto w-28" />
+              <span className="font-label text-lg font-bold tracking-[-0.03em]">Tilik Label</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </li>
   );

@@ -26,7 +26,7 @@ const FOOTER_GROUPS = [
 
 export function Footer({ illustrated = false }: { illustrated?: boolean }) {
   return (
-    <footer className={cn('shrink-0', illustrated ? 'footer-illustrated' : 'border-t border-line bg-surface')}>
+    <footer className={cn('shrink-0', illustrated ? 'footer-illustrated below-fold' : 'border-t border-line bg-surface')}>
       <div className={cn(
         'page-shell',
         illustrated
@@ -78,7 +78,9 @@ export function Footer({ illustrated = false }: { illustrated?: boolean }) {
             src="/visual/teras-label.webp"
             alt=""
             fill
-            sizes="(max-width: 45rem) 45rem, 100vw"
+            unoptimized
+            fetchPriority="low"
+            sizes="100vw"
             className="footer-scene-image"
           />
           <p className="footer-scene-note">{APPROVAL_NOTE}</p>

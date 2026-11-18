@@ -7,9 +7,11 @@ const SPEED = 0.08;
 
 export function LatarParallax() {
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const root = document.documentElement;
+    let cancelled = false;
+    let initFrame = 0;
     let frame = 0;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const update = () => {
       frame = 0;
@@ -19,12 +21,24 @@ export function LatarParallax() {
       if (!frame) frame = requestAnimationFrame(update);
     };
 
-    update();
-    window.addEventListener('scroll', schedule, { passive: true });
+    initFrame = requestAnimationFrame(() => {
+      initFrame = requestAnimationFrame(() => {
+        if (cancelled) return;
+        root.setAttribute('data-latar', '');
+        if (!reduced) {
+          update();
+          window.addEventListener('scroll', schedule, { passive: true });
+        }
+      });
+    });
+
     return () => {
+      cancelled = true;
+      cancelAnimationFrame(initFrame);
       window.removeEventListener('scroll', schedule);
       cancelAnimationFrame(frame);
       root.style.removeProperty('--latar-y');
+      root.removeAttribute('data-latar');
     };
   }, []);
 

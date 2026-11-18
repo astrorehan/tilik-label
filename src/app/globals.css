@@ -97,7 +97,6 @@
     scroll-behavior: smooth;
     scroll-padding-top: 5.5rem;
     -webkit-text-size-adjust: 100%;
-    text-rendering: optimizeLegibility;
   }
 
   body {
@@ -113,10 +112,6 @@
 
   :where(h1, h2, h3, h4) {
     text-wrap: balance;
-  }
-
-  :where(p, li) {
-    text-wrap: pretty;
   }
 
   ::selection {
@@ -195,7 +190,15 @@
 
   body::before {
     background:
-      url('/latar/butir.png'),
+      radial-gradient(58rem 40rem at 4% -8%, rgb(255 244 205 / 0.95), rgb(255 244 205 / 0) 72%),
+      radial-gradient(52rem 30rem at 96% 2%, rgb(220 235 160 / 0.6), rgb(220 235 160 / 0) 70%),
+      radial-gradient(46rem 34rem at 50% 108%, rgb(232 236 214 / 0.9), rgb(232 236 214 / 0) 70%),
+      var(--color-paper);
+  }
+
+  html[data-latar] body::before {
+    background:
+      url('/latar/butir.avif'),
       radial-gradient(58rem 40rem at 4% -8%, rgb(255 244 205 / 0.95), rgb(255 244 205 / 0) 72%),
       radial-gradient(52rem 30rem at 96% 2%, rgb(220 235 160 / 0.6), rgb(220 235 160 / 0) 70%),
       radial-gradient(46rem 34rem at 50% 108%, rgb(232 236 214 / 0.9), rgb(232 236 214 / 0) 70%),
@@ -210,9 +213,12 @@
    */
   body::after {
     bottom: -45vh;
-    background: url('/latar/bayang-daun.webp') right top / cover no-repeat;
     transform: translate3d(0, max(var(--latar-y, 0px), -45vh), 0);
     will-change: transform;
+  }
+
+  html[data-latar] body::after {
+    background: url('/latar/bayang-daun.avif') right top / cover no-repeat;
   }
 }
 
@@ -227,9 +233,14 @@
   padding-inline: clamp(1rem, 3.4vw, 2rem);
 }
 
+@utility below-fold {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
+}
+
 @utility font-label {
   font-family: var(--font-display), system-ui, sans-serif;
-  font-stretch: 100%;
+  font-synthesis-weight: none;
 }
 
 @utility type-h1 {
@@ -1577,7 +1588,6 @@
   /* Punggung kartu: kertas kraft berserat dengan logo timbul. */
   .step-card-back {
     background:
-      url('/latar/butir.png'),
       repeating-linear-gradient(97deg, rgb(255 255 255 / 0.05) 0 1px, transparent 1px 5px),
       repeating-linear-gradient(8deg, rgb(92 60 22 / 0.05) 0 1px, transparent 1px 7px),
       radial-gradient(120% 90% at 22% 12%, #dcbf91, #c39d68 55%, #ad8550);
@@ -1585,6 +1595,14 @@
       inset 0 0 0 1px rgb(255 255 255 / 0.35),
       inset 0 -2px 8px rgb(74 48 16 / 0.18),
       0 24px 60px -28px rgb(36 41 31 / 0.45);
+  }
+
+  html[data-latar] .step-card-back {
+    background:
+      url('/latar/butir.avif'),
+      repeating-linear-gradient(97deg, rgb(255 255 255 / 0.05) 0 1px, transparent 1px 5px),
+      repeating-linear-gradient(8deg, rgb(92 60 22 / 0.05) 0 1px, transparent 1px 7px),
+      radial-gradient(120% 90% at 22% 12%, #dcbf91, #c39d68 55%, #ad8550);
   }
 
   /* LogoMark memakai text-ink, jadi warnanya diganti lewat variabel, bukan lewat color. */

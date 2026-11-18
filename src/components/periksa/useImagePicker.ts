@@ -27,8 +27,11 @@ export interface ImagePicker {
   };
 }
 
-/** Keadaan bersama untuk menambah foto: unggah, seret, kamera, dan foto contoh. */
-export function useImagePicker(onImage: (image: PreparedImage) => void): {
+/**
+ * Keadaan bersama untuk menambah foto: unggah, seret, kamera, dan foto contoh.
+ * `sample` hanya terisi bila gambar berasal dari kemasan contoh.
+ */
+export function useImagePicker(onImage: (image: PreparedImage, sample?: SamplePhoto) => void): {
   picker: ImagePicker;
   /** Pasang ke input berkas tersembunyi. */
   attachFileInput: (node: HTMLInputElement | null) => void;
@@ -53,7 +56,7 @@ export function useImagePicker(onImage: (image: PreparedImage) => void): {
     };
   }, []);
 
-  const prepare = async (load: () => Promise<Blob>, fallbackError: string) => {
+  const prepare = async (load: () => Promise<Blob>, fallbackError: string, sample?: SamplePhoto) => {
     if (busy) return;
     setBusy(true);
     setError(null);
@@ -61,7 +64,7 @@ export function useImagePicker(onImage: (image: PreparedImage) => void): {
       const prepared = await prepareImageFile(await load());
       if (mountedRef.current) {
         setCameraOpen(false);
-        onImageRef.current(prepared);
+        onImageRef.current(prepared, sample);
       }
     } catch (caught) {
       if (mountedRef.current) {
@@ -101,7 +104,7 @@ export function useImagePicker(onImage: (image: PreparedImage) => void): {
         const response = await fetch(samplePhotoUrl(photo));
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.blob();
-      }, 'Foto contoh gagal dimuat. Coba lagi atau pilih foto lain.');
+      }, 'Foto contoh gagal dimuat. Coba lagi atau pilih foto lain.', photo);
     },
     handleCaptured: (image) => {
       setCameraOpen(false);
