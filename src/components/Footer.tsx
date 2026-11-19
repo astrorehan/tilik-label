@@ -9,6 +9,7 @@ const APPROVAL_NOTE = 'Pengesahan label tetap mengikuti penilaian instansi berwe
 const REFERENCE_LINKS = [
   { href: '/aturan', label: 'Aturan dan batasan' },
   { href: '/nilai-gizi', label: 'Tabel nilai gizi' },
+  { href: '/mcp', label: 'MCP untuk agen' },
 ];
 
 const FOOTER_GROUPS = [
