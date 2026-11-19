@@ -15,10 +15,12 @@ const IMPACT_LOOK: Record<PermitRuleImpact, { label: string; tone: PillTone }> =
 export function PermitPathView({
   result,
   defaultOpen,
+  title = 'Jalur izin',
   children,
 }: {
   result: PermitPathResult;
   defaultOpen?: boolean;
+  title?: string;
   children?: ReactNode;
 }) {
   return (
@@ -27,7 +29,7 @@ export function PermitPathView({
       open={defaultOpen}
       label={
         <span>
-          <span className="block">Jalur izin</span>
+          <span className="block">{title}</span>
           <span className="block text-sm font-normal text-ink-2">{result.judul}</span>
         </span>
       }

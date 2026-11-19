@@ -35,6 +35,12 @@ const STANDALONE_ABBREVIATIONS: Array<{ pattern: RegExp; contoh: string }> = [
 const DOTTED_ABBREVIATION_REGEX =
   /\b(tep|tpg|gl|bhn|mrg|pgl|prst|pwn|pgw|pms|mntg|gr|kt)\./gi;
 
+/** Kata pendek tanpa huruf vokal yang diakhiri titik, misalnya "mrh." atau "bwg.". */
+const CONSONANT_ABBREVIATION_REGEX = /\b[b-df-hj-np-tv-z]{2,5}\./gi;
+
+/** Satuan takaran yang sah ditulis singkat, jadi bukan singkatan nama bahan. */
+const METRIC_UNIT_TOKENS = new Set(['mg', 'kg', 'ml', 'mcg']);
+
 const ALLOWED_NEGATIVE_BTP_RULES: Array<{
   label: string;
   keyword: string;
@@ -365,9 +371,15 @@ function checkL04(label: LabelData): LabelRuleResult {
     }
   }
 
-  const dottedMatches = body.match(DOTTED_ABBREVIATION_REGEX);
-  if (dottedMatches?.length) {
-    issues.push(`singkatan bertitik (${[...new Set(dottedMatches)].join(', ')})`);
+  const dottedMatches = [
+    ...(body.match(DOTTED_ABBREVIATION_REGEX) ?? []),
+    ...(body.match(CONSONANT_ABBREVIATION_REGEX) ?? []).filter(
+      (m) => !METRIC_UNIT_TOKENS.has(m.slice(0, -1).toLowerCase()),
+    ),
+  ];
+  if (dottedMatches.length) {
+    const unique = [...new Set(dottedMatches.map((m) => m.toLowerCase()))];
+    issues.push(`singkatan bertitik (${unique.join(', ')})`);
   }
 
   if (issues.length > 0) {

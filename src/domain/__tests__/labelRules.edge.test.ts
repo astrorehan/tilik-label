@@ -326,6 +326,36 @@ describe('L-04 tambahan', () => {
     );
   });
 
+  it.each(['bawang mrh.', 'bwg. putih', 'Tpg terigu, mrh.'])(
+    'kata tanpa vokal yang diakhiri titik (%s): kurang',
+    (bahan) => {
+      expect(status('L-04', makeLabel({ daftarBahanTeks: `Komposisi: ${bahan}, gula` }))).toBe(
+        'kurang',
+      );
+    },
+  );
+
+  it('menyebut singkatan tanpa vokal di penjelasan', () => {
+    expect(
+      rule('L-04', makeLabel({ daftarBahanTeks: 'cabai rawit, bawang mrh., garam' })).penjelasan,
+    ).toContain('mrh.');
+  });
+
+  it('satuan metrik bertitik tidak dianggap singkatan bahan', () => {
+    expect(
+      status(
+        'L-04',
+        makeLabel({ daftarBahanTeks: 'Komposisi: tepung terigu, vitamin C 10 mg., garam' }),
+      ),
+    ).toBe('lengkap');
+  });
+
+  it('kata biasa di akhir daftar bahan tidak dianggap singkatan', () => {
+    expect(
+      status('L-04', makeLabel({ daftarBahanTeks: 'Komposisi: cabai rawit, bawang merah, garam.' })),
+    ).toBe('lengkap');
+  });
+
   it('singkatan dengan huruf besar-kecil campur dikenali', () => {
     expect(status('L-04', makeLabel({ daftarBahanTeks: 'Komposisi: Msg, gula' }))).toBe('kurang');
   });

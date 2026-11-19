@@ -208,18 +208,35 @@ export function canDownloadLabel(
   return baris.every((row) => !(row.wajib && row.kosong));
 }
 
+interface RemovedClaim {
+  teks: string;
+  pasal: string;
+}
+
+/**
+ * Membuang klaim yang pasti terlarang. Tiap klaim diuji sendiri bersama daftar
+ * bahan asli, supaya klaim negatif ("tanpa pengawet") yang bertentangan dengan
+ * komposisi ikut tertangkap oleh L-16.
+ */
 function cleanClaims(
   claims: readonly string[],
+  daftarBahanTeks: string,
   answers: AdditionalAnswers,
-): { kept: string[]; removed: string[] } {
+): { kept: string[]; removed: RemovedClaim[] } {
   const kept: string[] = [];
-  const removed: string[] = [];
+  const removed: RemovedClaim[] = [];
   for (const claim of claims) {
     if (blank(claim)) continue;
-    const probe: LabelData = { ...createEmptyLabelData(), pernyataanLain: [claim] };
+    const probe: LabelData = { ...createEmptyLabelData(), daftarBahanTeks, pernyataanLain: [claim] };
     const hasil = evaluateLabelRules(probe, answers).hasil;
-    const bad = hasil.some((r) => (r.id === 'L-15' || r.id === 'L-17') && r.status === 'kurang');
-    (bad ? removed : kept).push(claim.trim());
+    const kurang = (id: LabelRuleId) => hasil.some((r) => r.id === id && r.status === 'kurang');
+    if (kurang('L-15') || kurang('L-17')) {
+      removed.push({ teks: claim.trim(), pasal: 'Pasal 67' });
+    } else if (kurang('L-16')) {
+      removed.push({ teks: claim.trim(), pasal: 'Pasal 24' });
+    } else {
+      kept.push(claim.trim());
+    }
   }
   return { kept, removed };
 }
@@ -364,10 +381,12 @@ export function buildCorrectedLabel(label: LabelData, answers: AdditionalAnswers
   }
 
   // Klaim
-  const { kept, removed } = cleanClaims(label.pernyataanLain, answers);
+  const { kept, removed } = cleanClaims(label.pernyataanLain, label.daftarBahanTeks, answers);
   for (const claim of removed) {
     catatan.push(
-      `Pernyataan "${claim}" dibuang karena termasuk klaim yang tidak boleh dicantumkan (Pasal 67).`,
+      claim.pasal === 'Pasal 24'
+        ? `Pernyataan "${claim.teks}" dibuang karena bertentangan dengan komposisi produk (Pasal 24).`
+        : `Pernyataan "${claim.teks}" dibuang karena termasuk klaim yang tidak boleh dicantumkan (Pasal 67).`,
     );
   }
 

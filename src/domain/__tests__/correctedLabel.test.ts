@@ -191,6 +191,39 @@ describe('buildCorrectedLabel: butir bersyarat', () => {
   });
 });
 
+describe('buildCorrectedLabel: klaim negatif bahan tambahan', () => {
+  it('membuang "Tanpa pengawet" bila komposisi memuat pengawet', () => {
+    const result = buildCorrectedLabel(
+      makeLabel({
+        daftarBahanTeks: 'Komposisi: cabai rawit, garam, natrium benzoat.',
+        pernyataanLain: ['Tanpa pengawet', 'Pedas mantap'],
+      }),
+      makeAnswers(),
+    );
+    expect(row(result, 'pernyataanLain').teks).toBe('Pedas mantap');
+    expect(result.catatan.some((c) => c.includes('"Tanpa pengawet"') && c.includes('Pasal 24'))).toBe(true);
+  });
+
+  it('mempertahankan "Tanpa pengawet" bila komposisi dan resep tidak memuat pengawet', () => {
+    const result = buildCorrectedLabel(
+      makeLabel({ pernyataanLain: ['Tanpa pengawet'] }),
+      makeAnswers({ resep: [{ nama: 'pisang kepok', jumlahGram: 500 }, { nama: 'garam', jumlahGram: 5 }] }),
+    );
+    expect(row(result, 'pernyataanLain').teks).toBe('Tanpa pengawet');
+  });
+
+  it('membuang klaim negatif dan klaim umum bebas BTP bersamaan', () => {
+    const result = buildCorrectedLabel(
+      makeLabel({
+        daftarBahanTeks: 'Komposisi: cabai rawit, garam, natrium benzoat.',
+        pernyataanLain: ['Tanpa pengawet', 'Bebas bahan tambahan pangan'],
+      }),
+      makeAnswers(),
+    );
+    expect(row(result, 'pernyataanLain').teks).toBe('');
+  });
+});
+
 describe('buildCorrectedLabel: perbaikan otomatis', () => {
   it('menambah awalan Komposisi bila belum ada, dan mempertahankan awalan resmi lain', () => {
     const tanpa = buildCorrectedLabel(
