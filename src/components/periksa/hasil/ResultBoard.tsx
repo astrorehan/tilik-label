@@ -16,7 +16,6 @@ import {
 import { Button, type ButtonVariant } from '@/components/ui/button';
 import { Notice, Pill } from '@/components/ui/surface';
 import {
-  evaluatePermitPath,
   FIELDS_BY_RULE,
   prepareForCheck,
   PRINT_GUARANTEED_RULES,
@@ -89,6 +88,9 @@ function buildRowMarks(review: LabelReview) {
     const row = ROW_BY_RULE[entry.asli.id];
     if (row) markFor(row).needsDecision = true;
   }
+  for (const row of review.keputusanKlaim?.kolom ?? []) {
+    markFor(row).needsDecision = true;
+  }
   return { numbers, marks };
 }
 
@@ -122,13 +124,12 @@ export function ResultBoard({
 }) {
   const prepared = useMemo(() => prepareForCheck(label, answers), [label, answers]);
   const review = useMemo(() => reviewLabel(prepared.label, prepared.answers), [prepared]);
-  const permit = useMemo(() => evaluatePermitPath(prepared.label, prepared.answers), [prepared]);
   const assistantInput = useMemo(
     () => ({ label: prepared.label, answers: prepared.answers }),
     [prepared],
   );
   const productTitle = prepared.label.namaProduk.trim() || 'Label tanpa nama';
-  const { groups } = review;
+  const { groups, permit, keputusanKlaim } = review;
   const { numbers, marks } = useMemo(() => buildRowMarks(review), [review]);
 
   const scrollToDeck = () => {
@@ -136,6 +137,9 @@ export function ResultBoard({
   };
   const scrollToLabel = () => {
     focusInView(document.getElementById('label-perbaikan-judul'));
+  };
+  const editClaims = () => {
+    onEditLabel(keputusanKlaim?.kolom.length === 1 ? keputusanKlaim.kolom[0] : undefined);
   };
 
   const printButton = (text: string, variant: ButtonVariant, size: 'md' | 'lg') => (
@@ -168,6 +172,10 @@ export function ResultBoard({
             {groups.keputusan.length > 0 ? (
               <Button size="lg" iconAfter="arrowRight" onClick={scrollToDeck}>
                 Mulai benahi
+              </Button>
+            ) : keputusanKlaim ? (
+              <Button size="lg" iconAfter="arrowRight" onClick={scrollToLabel}>
+                Tinjau klaim dan izin
               </Button>
             ) : printButton('Cetak label perbaikan', 'primary', 'lg')}
             <AskTilikButton />
@@ -213,7 +221,10 @@ export function ResultBoard({
             original={prepared.label}
             marks={marks}
             numbers={numbers}
-            print={printButton('Buka label siap cetak', groups.keputusan.length === 0 ? 'primary' : 'secondary', 'md')}
+            onEditClaims={editClaims}
+            print={keputusanKlaim
+              ? printButton('Buka draf cetak', 'secondary', 'md')
+              : printButton('Buka label siap cetak', groups.keputusan.length === 0 ? 'primary' : 'secondary', 'md')}
           />
         </aside>
 
@@ -230,7 +241,7 @@ export function ResultBoard({
         )}
       </div>
 
-      <PermitPathView result={permit}>
+      <PermitPathView result={permit} title="Jalur izin untuk label perbaikan">
         <Button variant="secondary" size="md" icon="edit" onClick={() => onEditAnswers()}>
           Ubah data produk
         </Button>
@@ -271,7 +282,7 @@ function ResultHero({
   actions: ReactNode;
   status: ReactNode;
 }) {
-  const { groups, skor } = review;
+  const { groups, skor, keputusanKlaim } = review;
   const keputusan = groups.keputusan.length;
   const cek = groups.cek.length;
 
@@ -284,10 +295,12 @@ function ResultHero({
 
   const headline =
     keputusan > 0
-      ? `Tinggal ${keputusan} hal yang perlu kamu benahi`
-      : cek > 0
-        ? 'Labelmu hampir siap'
-        : 'Labelmu sudah sesuai aturan';
+      ? `Tinggal ${keputusan} hal yang perlu kamu benahi pada label`
+      : keputusanKlaim
+        ? 'Klaim di label perlu keputusanmu'
+        : cek > 0
+          ? 'Labelmu hampir siap'
+          : 'Labelmu sudah sesuai aturan';
 
   return (
     <section aria-labelledby="hasil-judul" className="glass-float overflow-hidden rounded-[32px] p-5 sm:p-8">
@@ -297,7 +310,7 @@ function ResultHero({
             segments={segments}
             total={skor.total}
             value={skor.denganPerbaikan}
-            caption="aturan terpenuhi dengan label perbaikan"
+            caption="aturan label terpenuhi dengan perbaikan"
           />
           <ul className="grid w-full max-w-[16rem] gap-1.5 text-sm">
             {segments.map((segment) => (
@@ -366,14 +379,15 @@ function ResultGreeting({ review, input }: { review: LabelReview; input?: TilikI
   const priorities = ranked?.length ? ranked : candidates.slice(0, 2);
   const fixed = review.groups.otomatis.length;
   const firstSteps = 'Yang masih perlu kamu tangani dulu:';
+  const remaining = review.keputusanKlaim ? 'Klaim di draf label masih perlu keputusanmu.' : '';
   const summary = fixed > 0
     ? priorities.length > 0
       ? `Aku sudah membetulkan ${fixed} hal di label perbaikan. ${firstSteps}`
-      : `Aku sudah membetulkan ${fixed} hal di label perbaikan. Sisanya sudah sesuai.`
+      : `Aku sudah membetulkan ${fixed} hal di label perbaikan. ${remaining || 'Sisanya sudah sesuai.'}`
     : priorities.length > 0
       ? firstSteps
-      : 'Semua aturan yang bisa kuperiksa sudah terpenuhi.';
-  const mood: TilikMood = priorities.length > 0 ? 'explaining' : 'happy';
+      : remaining || 'Semua aturan yang bisa kuperiksa sudah terpenuhi.';
+  const mood: TilikMood = priorities.length > 0 || remaining ? 'explaining' : 'happy';
 
   return (
     <div aria-live="polite">
@@ -449,15 +463,18 @@ function AutoFixPanel({
   original,
   marks,
   numbers,
+  onEditClaims,
   print,
 }: {
   review: LabelReview;
   original: LabelData;
   marks: Partial<Record<CorrectedLabelKey, RowMark>>;
   numbers: Map<LabelRuleId, number>;
+  onEditClaims: () => void;
   print: ReactNode;
 }) {
-  const { corrected, groups } = review;
+  const { corrected, groups, keputusanKlaim } = review;
+  const needsDecision = groups.keputusan.length > 0 || Boolean(keputusanKlaim);
   return (
     <section className="panel space-y-5 p-5 sm:p-6">
       <div>
@@ -476,7 +493,7 @@ function AutoFixPanel({
         <CorrectedLabelPreview corrected={corrected} marks={marks} />
       </div>
 
-      {(groups.otomatis.length > 0 || groups.keputusan.length > 0) && (
+      {(groups.otomatis.length > 0 || needsDecision) && (
         <ul aria-label="Arti tanda pada label" className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-ink-2">
           {groups.otomatis.length > 0 && (
             <li className="inline-flex items-center gap-1.5">
@@ -484,7 +501,7 @@ function AutoFixPanel({
               Dibetulkan Tilik
             </li>
           )}
-          {groups.keputusan.length > 0 && (
+          {needsDecision && (
             <li className="inline-flex items-center gap-1.5">
               <span aria-hidden className="text-sm leading-none font-semibold text-ink underline decoration-danger decoration-wavy underline-offset-2">
                 abc
@@ -493,6 +510,16 @@ function AutoFixPanel({
             </li>
           )}
         </ul>
+      )}
+
+      {keputusanKlaim && (
+        <Notice tone="warning" title="Butuh keputusanmu">
+          <p>{keputusanKlaim.aturan.penjelasan}</p>
+          <p className="mt-1">{keputusanKlaim.saran}</p>
+          <Button className="mt-3" size="md" variant="secondary" icon="edit" onClick={onEditClaims}>
+            Ubah isian klaim
+          </Button>
+        </Notice>
       )}
 
       {groups.otomatis.length > 0 && (

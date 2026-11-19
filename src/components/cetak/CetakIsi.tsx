@@ -19,12 +19,10 @@ import {
   MIN_STICKER_WIDTH_MM,
   REGULATION_LAST_READ,
   STICKER_PRESETS_MM,
-  buildCorrectedLabel,
   evaluateLabelPrintFit,
-  evaluateLabelRules,
-  evaluatePermitPath,
   measureLowercaseOHeightMm,
   prepareForCheck,
+  reviewLabel,
   type CorrectedLabel,
   type CorrectedLabelRow,
   type LabelRuleResult,
@@ -96,16 +94,8 @@ export function CetakIsi({ product, onEdit }: { product: SavedProduct; onEdit?: 
     () => prepareForCheck(product.label, product.answers),
     [product.label, product.answers],
   );
-  const corrected = useMemo(
-    () => buildCorrectedLabel(prepared.label, prepared.answers),
-    [prepared],
-  );
-  const report = useMemo(
-    () => evaluateLabelRules(prepared.label, prepared.answers),
-    [prepared],
-  );
-  const permit = useMemo(
-    () => evaluatePermitPath(prepared.label, prepared.answers),
+  const { corrected, report, permit, keputusanKlaim } = useMemo(
+    () => reviewLabel(prepared.label, prepared.answers),
     [prepared],
   );
 
@@ -149,6 +139,13 @@ export function CetakIsi({ product, onEdit }: { product: SavedProduct; onEdit?: 
         </div>
       </header>
 
+      {keputusanKlaim && (
+        <Notice tone="warning" title="Butuh keputusanmu" className="cetak-tidak-dicetak">
+          <p>{keputusanKlaim.aturan.penjelasan}</p>
+          <p className="mt-1">{keputusanKlaim.saran}</p>
+        </Notice>
+      )}
+
       <LabelBagian corrected={corrected} namaProduk={namaCetak} editButton={editButton} />
 
       <section
@@ -186,7 +183,7 @@ export function CetakIsi({ product, onEdit }: { product: SavedProduct; onEdit?: 
           </p>
 
           <section className="mt-6">
-            <h3 className="text-lg font-bold">Jalur izin</h3>
+            <h3 className="text-lg font-bold">Jalur izin untuk label perbaikan</h3>
             <p className="mt-1 font-semibold">{permit.judul}</p>
             <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm">
               {permit.alasan.map((alasan) => (
@@ -196,6 +193,12 @@ export function CetakIsi({ product, onEdit }: { product: SavedProduct; onEdit?: 
             <p className="mt-1.5 text-sm">
               Dasar: {permit.rujukan.map((ref) => `${ref.peraturan}, ${ref.pasal}`).join('; ')}
             </p>
+            {keputusanKlaim && (
+              <div className="mt-2 text-sm">
+                <p className="font-semibold">Butuh keputusanmu</p>
+                <p>{keputusanKlaim.saran}</p>
+              </div>
+            )}
             {permit.perluDicek.length > 0 && (
               <div className="mt-2 text-sm">
                 <p className="font-semibold">Perlu dicek ke Dinas Kesehatan</p>
@@ -209,12 +212,12 @@ export function CetakIsi({ product, onEdit }: { product: SavedProduct; onEdit?: 
           </section>
 
           <FindingList
-            judul={`Temuan kurang (${kurang.length})`}
+            judul={`Temuan kurang pada label awal (${kurang.length})`}
             kosong="Tidak ada butir yang kurang."
             items={kurang}
           />
           <FindingList
-            judul={`Tidak bisa dicek (${tidakBisaDicek.length})`}
+            judul={`Belum bisa dicek dari label awal (${tidakBisaDicek.length})`}
             kosong="Semua butir bisa dicek."
             items={tidakBisaDicek}
           />

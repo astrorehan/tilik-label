@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyAnswers, createEmptyLabelData } from '../labelRules';
 import { PRINT_GUARANTEED_RULES, reviewLabel, type FindingGroupId } from '../reportGroups';
+import { SAMPLE_LABEL_CASES } from '../sampleLabels';
 import type { AdditionalAnswers, LabelData, LabelRuleId } from '../types';
 
 function makeLabel(overrides: Partial<LabelData> = {}): LabelData {
@@ -74,6 +75,40 @@ describe('reviewLabel', () => {
     expect(review.report.hasil.find((item) => item.id === 'L-16')?.status).toBe('kurang');
     expect(groupOf(review, 'L-16')).toBe('otomatis');
     expect(review.corrected.data.pernyataanLain).toEqual([]);
+  });
+
+  it('menilai izin dari klaim yang masih tampil pada label perbaikan Kerupuk ikan', () => {
+    const sample = SAMPLE_LABEL_CASES.find(({ id }) => id === 'kerupuk-ikan-klaim-gizi')!;
+    const review = reviewLabel(sample.label, sample.answers);
+
+    expect(groupOf(review, 'L-15')).toBe('otomatis');
+    expect(review.corrected.baris.find(({ kunci }) => kunci === 'pernyataanLain')?.teks).toBe('Tinggi protein');
+    expect(review.permit.hasil).toBe('tidak_bisa_spp_irt');
+    expect(review.permit.klaimTerdeteksi).toEqual(['Tinggi protein']);
+    expect(review.permit.alasan.join(' ')).not.toContain('Menyehatkan');
+    expect(review.keputusanKlaim?.kolom).toEqual(['pernyataanLain']);
+    expect(review.keputusanKlaim?.aturan.penjelasan).toContain('Tinggi protein');
+
+    const edited = reviewLabel({ ...sample.label, pernyataanLain: ['Menyehatkan untuk keluarga'] }, sample.answers);
+    expect(edited.permit.klaimTerdeteksi).toEqual([]);
+    expect(edited.permit.hasil).toBe('bisa_spp_irt');
+    expect(edited.keputusanKlaim).toBeUndefined();
+  });
+
+  it('menandai klaim pada nama produk jika SPP-IRT masih perlu dipertimbangkan', () => {
+    const label = makeLabel({ namaProduk: 'Keripik Pisang Tinggi Serat' });
+    const review = reviewLabel(label, makeAnswers());
+    expect(review.keputusanKlaim?.kolom).toEqual(['namaProduk']);
+
+    const exempt = reviewLabel(label, makeAnswers({ umurSimpanHari: 5 }));
+    expect(exempt.permit.hasil).toBe('tidak_wajib_spp_irt');
+    expect(exempt.keputusanKlaim).toBeUndefined();
+  });
+
+  it('tetap meminta cek klaim bila tulisan pada label awal belum terbaca', () => {
+    const review = reviewLabel(makeLabel({ unreadableFields: ['pernyataanLain'] }), makeAnswers());
+    expect(review.permit.aturan.find(({ id }) => id === 'I-05')?.dampak).toBe('perlu_dicek');
+    expect(review.keputusanKlaim).toBeUndefined();
   });
 
   it('menaruh aturan cetak fisik di kelompok cek', () => {

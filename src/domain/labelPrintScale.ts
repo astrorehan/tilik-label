@@ -95,7 +95,7 @@ export const STICKER_PRESETS_MM: readonly StickerPreset[] = [
   {
     id: '90x65',
     label: '90 × 65 mm',
-    kegunaan: 'Pouch kue kering / keripuk',
+    kegunaan: 'Pouch kue kering / keripik',
     dimensi: { lebarMm: 90, tinggiMm: 65 },
   },
   {

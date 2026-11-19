@@ -1,5 +1,6 @@
 import { buildCorrectedLabel, type CorrectedLabel } from './correctedLabel';
 import { evaluateLabelRules } from './labelRules';
+import { detectLabelClaims, evaluatePermitPath } from './permitRules';
 import type { AdditionalQuestionId } from './questions';
 import type {
   AdditionalAnswers,
@@ -8,6 +9,8 @@ import type {
   LabelFieldKey,
   LabelRuleId,
   LabelRuleResult,
+  PermitPathResult,
+  PermitRuleResult,
 } from './types';
 
 /**
@@ -27,10 +30,18 @@ export interface FindingEntry {
   group: FindingGroupId;
 }
 
+type ClaimField = 'namaProduk' | 'pernyataanLain';
+
 export interface LabelReview {
   report: LabelCheckReport;
   correctedReport: LabelCheckReport;
   corrected: CorrectedLabel;
+  permit: PermitPathResult;
+  keputusanKlaim?: {
+    aturan: PermitRuleResult;
+    kolom: ClaimField[];
+    saran: string;
+  };
   groups: Record<FindingGroupId, FindingEntry[]>;
   skor: {
     total: number;
@@ -93,6 +104,23 @@ export function reviewLabel(label: LabelData, answers: AdditionalAnswers): Label
   const corrected = buildCorrectedLabel(label, answers);
   const correctedReport = evaluateLabelRules(corrected.data, answers);
   const afterById = new Map(correctedReport.hasil.map((item) => [item.id, item]));
+  const { namaProduk, pernyataanLain } = corrected.data;
+  const permit = evaluatePermitPath(
+    { namaProduk, pernyataanLain, unreadableFields: label.unreadableFields },
+    answers,
+  );
+  const claimRule = permit.aturan.find((rule) => rule.id === 'I-05' && rule.dampak === 'menghalangi');
+  let keputusanKlaim: LabelReview['keputusanKlaim'];
+  if (claimRule && permit.hasil !== 'tidak_wajib_spp_irt') {
+    const kolom: ClaimField[] = [];
+    if (detectLabelClaims({ namaProduk, pernyataanLain: [] }).length > 0) kolom.push('namaProduk');
+    if (detectLabelClaims({ namaProduk: '', pernyataanLain }).length > 0) kolom.push('pernyataanLain');
+    keputusanKlaim = {
+      aturan: claimRule,
+      kolom,
+      saran: 'Hapus klaim jika ingin mengajukan SPP-IRT. Jika klaim dipertahankan, tanyakan jalur izin dan syarat klaim ke BPOM.',
+    };
+  }
 
   const groups: Record<FindingGroupId, FindingEntry[]> = {
     keputusan: [],
@@ -110,6 +138,8 @@ export function reviewLabel(label: LabelData, answers: AdditionalAnswers): Label
     report,
     correctedReport,
     corrected,
+    permit,
+    keputusanKlaim,
     groups,
     skor: {
       total: report.hasil.length,
