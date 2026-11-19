@@ -20,6 +20,8 @@ interface CameraCaptureProps {
   /** Dipanggil bila kamera tidak bisa dipakai, untuk mengarahkan ke unggah berkas. */
   onUseUpload: () => void;
   onCancel: () => void;
+  /** Kalimat petunjuk bingkai di bawah jendela bidik. */
+  frameHint?: string;
 }
 
 type LiveHint = { tone: 'baik' | 'saran'; text: string };
@@ -38,7 +40,12 @@ const CHECK_INTERVAL_MS = 450;
  * Jendela bidik kamera belakang. Setiap setengah detik bingkai dinilai di perangkat
  * (terang, silau, buram) supaya pengguna tahu kapan foto siap dijepret.
  */
-export function CameraCapture({ onCaptured, onUseUpload, onCancel }: CameraCaptureProps) {
+export function CameraCapture({
+  onCaptured,
+  onUseUpload,
+  onCancel,
+  frameHint = 'Masukkan seluruh label ke dalam bingkai.',
+}: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const captureTimer = useRef<ReturnType<typeof setTimeout>>(null);
@@ -290,7 +297,7 @@ export function CameraCapture({ onCaptured, onUseUpload, onCancel }: CameraCaptu
         {flashing && <div aria-hidden className="flash pointer-events-none absolute inset-0 bg-white" />}
       </div>
       <p className="text-sm leading-snug text-ink-2">
-        Masukkan seluruh label ke dalam bingkai.{' '}
+        {frameHint}{' '}
         {autoCapture
           ? 'Jepret otomatis menyala: Tilik menjepret sendiri saat tulisan sudah jelas.'
           : 'Ketuk tombol putih untuk menjepret, atau nyalakan jepret otomatis.'}
