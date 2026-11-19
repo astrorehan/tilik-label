@@ -133,13 +133,26 @@ export class ProviderError extends Error {
   }
 }
 
+export interface VisionTask {
+  system: string;
+  user: string;
+  schema: Record<string, unknown>;
+}
+
+const LABEL_VISION_TASK: VisionTask = {
+  system: READER_SYSTEM_PROMPT,
+  user: USER_PROMPT,
+  schema: EXTRACTION_JSON_SCHEMA as unknown as Record<string, unknown>,
+};
+
 /** Memanggil DeepSeek lewat API chat completions (mode non-thinking, keluaran JSON). */
 export async function callDeepseek(
   config: ReaderProviderConfig,
   image: ReaderImage,
-  options: { fetchImpl?: FetchLike; signal?: AbortSignal } = {},
+  options: { fetchImpl?: FetchLike; signal?: AbortSignal; task?: VisionTask } = {},
 ): Promise<string> {
   const fetchImpl = options.fetchImpl ?? fetch;
+  const task = options.task ?? LABEL_VISION_TASK;
   let response: Response;
   try {
     response = await fetchImpl(`${config.baseUrl}/chat/completions`, {
@@ -151,11 +164,11 @@ export async function callDeepseek(
       body: JSON.stringify({
         model: config.model,
         messages: [
-          { role: 'system', content: READER_SYSTEM_PROMPT },
+          { role: 'system', content: task.system },
           {
             role: 'user',
             content: [
-              { type: 'text', text: USER_PROMPT },
+              { type: 'text', text: task.user },
               { type: 'image_url', image_url: { url: image.dataUrl } },
             ],
           },
@@ -192,8 +205,9 @@ export async function callDeepseek(
 export async function callHaiku(
   config: ReaderProviderConfig,
   image: ReaderImage,
-  options: { fetchImpl?: FetchLike; signal?: AbortSignal } = {},
+  options: { fetchImpl?: FetchLike; signal?: AbortSignal; task?: VisionTask } = {},
 ): Promise<string> {
+  const task = options.task ?? LABEL_VISION_TASK;
   const client = new Anthropic({
     apiKey: config.apiKey,
     authToken: null,
@@ -208,19 +222,19 @@ export async function callHaiku(
         model: config.model,
         max_tokens: 4000,
         system: [
-          { type: 'text', text: READER_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: task.system, cache_control: { type: 'ephemeral' } },
         ],
         thinking: { type: 'disabled' },
         output_config: {
           effort: 'low',
-          format: { type: 'json_schema', schema: EXTRACTION_JSON_SCHEMA as unknown as Record<string, unknown> },
+          format: { type: 'json_schema', schema: task.schema },
         },
         messages: [
           {
             role: 'user',
             content: [
               { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.base64 } },
-              { type: 'text', text: USER_PROMPT },
+              { type: 'text', text: task.user },
             ],
           },
         ],

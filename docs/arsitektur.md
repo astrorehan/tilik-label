@@ -46,6 +46,7 @@ Batas modul dijaga sesuai [CONTRIBUTING.md](../CONTRIBUTING.md): `src/domain/` t
 | `/produk` | Daftar "Produk saya" dari perangkat | statis |
 | `/aturan` | Aturan yang diperiksa, pasal, cara cek, dan batasan | statis |
 | `/nilai-gizi` | Tiga jalan resmi menyiapkan tabel nilai gizi | statis |
+| `/mcp` | Panduan koneksi server MCP, prompt inisialisasi agen, dan daftar tool/resource | statis |
 | `/cetak` | Label perbaikan berskala fisik dan lembar ringkasan, untuk disimpan sebagai PDF | dinamis |
 
 ## Pembaca foto: `POST /api/baca-label`
@@ -58,6 +59,10 @@ Batas modul dijaga sesuai [CONTRIBUTING.md](../CONTRIBUTING.md): `src/domain/` t
 
 Ketepatan kedua penyedia bisa dibandingkan dengan `node scripts/bandingkan-pembaca.mjs` terhadap tiga label uji di `scripts/contoh-label/` beserta jawaban harapannya di `harapan.json`.
 
+## Pembaca foto resep: `POST /api/baca-resep`
+
+Alur dan pengamannya sama dengan `/api/baca-label` (kompresi di peramban, batas 6,5 MB, pengecekan asal permintaan, kuota `baca`, tanpa penyimpanan gambar). `src/lib/server/recipeReader.ts` meminta keluaran sesuai `RECIPE_EXTRACTION_JSON_SCHEMA` lalu memvalidasinya lewat `validateRecipeExtraction` di `src/domain/recipeExtraction.ts`. Satuan metrik/baku (g, kg, mg, ons, ml, liter) dikonversi ke gram/ml; satuan tidak baku (sdm, sdt, butir, secukupnya) dibiarkan kosong dengan catatan `takaranAsli` supaya pengguna yang melengkapi.
+
 ## Asisten: `POST /api/asisten`
 
 - **Konteks terkunci.** `buildLockedContext` di `src/domain/assistant.ts` menyusun isian label, jawaban, dan hasil aturan; `buildReferenceMaterial` menyusun ringkasan pasal. Model menerima keduanya, bukan teks bebas dari pengguna saja.
@@ -65,6 +70,15 @@ Ketepatan kedua penyedia bisa dibandingkan dengan `node scripts/bandingkan-pemba
 - **Pasal tidak bisa dikarang.** `checkAnswer` di `src/lib/server/assistant.ts` membuang jawaban yang menyebut pasal (`findUnknownArticles`) atau peraturan (`findUnknownRegulations`) di luar bahan acuan.
 - **Status tidak bisa diubah.** Asisten hanya mengembalikan teks; status tiap aturan selalu dihitung ulang oleh `src/domain`.
 - Batas waktu tiap panggilan 12 detik, dengan penyedia cadangan yang sama seperti pembaca foto.
+
+## Server MCP: `POST /api/mcp`
+
+Endpoint Model Context Protocol (MCP) Streamable HTTP tanpa status (`src/lib/server/mcpServer.ts` dan `src/app/api/mcp/route.ts`) agar agen AI luar (asisten desain, bot WhatsApp UMKM, atau pendamping UMKM) bisa memakai mesin aturan BPOM deterministik Tilik Label tanpa memanggil model LLM server dan tanpa akun.
+
+- **Tool read-only:** `periksa_label`, `susun_label_perbaikan`, `cek_alergen_komposisi`, `daftar_aturan_bpom`.
+- **Resource:** `bpom://aturan/katalog`, `bpom://aturan/batasan`, `bpom://contoh/kemasan`.
+- Semua hasil menyertakan penafian *"pemeriksaan awal, bukan pengesahan"* dan daftar `pertanyaanBelumDijawab` bila fakta produksi masih perlu ditanyakan ke pemilik produk.
+
 
 ## Penyimpanan di perangkat
 
@@ -98,7 +112,7 @@ Penghitungnya disimpan di memori proses, jadi di serverless tiap instans menghit
 
 | Pemeriksaan | Perintah | Di CI |
 |---|---|---|
-| Tes unit | `npm test` (21 berkas, 715 tes) | ya |
+| Tes unit | `npm test` (26 berkas, 753 tes) | ya |
 | Lint | `npm run lint` | ya |
 | Tipe | `npm run typecheck` | ya |
 | Build produksi | `npm run build` | ya |
