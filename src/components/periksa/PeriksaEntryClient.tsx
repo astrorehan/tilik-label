@@ -69,7 +69,7 @@ export function PeriksaEntryClient({
   // Draf pemeriksaan juga dibekukan saat pertama dibaca di klien supaya
   // auto-save berikutnya tidak me-remount formulir yang sedang diisi.
   const [draftSession, setDraftSession] = useState<DraftSession>({ kind: 'pending' });
-  if (!produkId && draftSnapshot !== SERVER_SNAPSHOT && draftSession.kind === 'pending') {
+  if (!produkId && !judgeTemplates && draftSnapshot !== SERVER_SNAPSHOT && draftSession.kind === 'pending') {
     const parsedDraft = parsePeriksaDraftSnapshot(draftSnapshot);
     if (parsedDraft && hasDraftContent(parsedDraft)) {
       const candidate =
@@ -95,15 +95,18 @@ export function PeriksaEntryClient({
   };
 
   if (!produkId) {
+    if (judgeTemplates) {
+      return <PeriksaFlowClient key="judge" persistDraft={false} judgeTemplates={judgeTemplates} />;
+    }
+
     if (draftSnapshot === SERVER_SNAPSHOT || draftSession.kind === 'pending') {
-      return <PeriksaFlowClient key="fresh-0" persistDraft={false} judgeTemplates={judgeTemplates} />;
+      return <PeriksaFlowClient key="fresh-0" persistDraft={false} />;
     }
 
     if (draftSession.kind === 'restored') {
       return (
         <PeriksaFlowClient
           key={`restored-${draftSession.revision}`}
-          judgeTemplates={judgeTemplates}
           productId={draftSession.draft.productId}
           initialSavedProduct={draftSession.savedProduct}
           initial={{
@@ -122,7 +125,6 @@ export function PeriksaEntryClient({
     return (
       <PeriksaFlowClient
         key={`fresh-${draftSession.revision}`}
-        judgeTemplates={judgeTemplates}
         persistDraft
         onResetDraft={handleResetDraft}
       />

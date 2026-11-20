@@ -114,6 +114,7 @@ function filledFields(label: LabelData): Set<LabelFieldKey> {
 export type JudgeTemplate = Pick<SampleLabelCase, 'id' | 'label' | 'answers'>;
 
 interface ActiveTemplate {
+  id: string;
   nama: string;
   label: LabelData;
   answers: AdditionalAnswers;
@@ -197,11 +198,26 @@ export function PeriksaFlowClient({
     setReadCancelled(false);
   };
 
+  const resetCheckData = () => {
+    setLabel(createEmptyLabelData());
+    setAnswers(createEmptyAnswers());
+    setProductId(undefined);
+    setRevealFields(null);
+    setQuestionToOpen(undefined);
+    setResultSaveState({ kind: 'idle' });
+    setFarthestStep('mulai');
+  };
+
   const { picker, attachFileInput } = useImagePicker((next, sample) => {
     setImage(next);
     clearRead();
     const found = sample ? judgeTemplates?.find((item) => item.id === sample.caseId) : undefined;
-    setTemplate(sample && found ? { nama: sample.nama, label: found.label, answers: found.answers } : null);
+    if (judgeTemplates) {
+      resetCheckData();
+    }
+    setTemplate(
+      sample && found ? { id: found.id, nama: sample.nama, label: found.label, answers: found.answers } : null,
+    );
   });
 
   useEffect(() => () => {
@@ -596,6 +612,9 @@ export function PeriksaFlowClient({
               setImage(null);
               setTemplate(null);
               clearRead();
+              if (judgeTemplates) {
+                resetCheckData();
+              }
             }}
             onAddPhoto={() => goToStep('mulai')}
           />
