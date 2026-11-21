@@ -1436,16 +1436,33 @@
     bottom: calc(var(--scene-w) * 0.34 / 3);
     z-index: 1;
     width: clamp(4.5rem, 8cqw, 7rem);
-    aspect-ratio: 1;
     translate: -50% 0;
+  }
+
+  /*
+   * Tilik hinggap di tepi atas bingkai video, agak ke kanan. Kakinya ada di sekitar 84% tinggi
+   * gambarnya, jadi kotaknya diturunkan sedikit agar kaki tepat menapak di tepi bingkai.
+   */
+  .tilik-video-spot {
+    position: absolute;
+    right: clamp(1.25rem, 9%, 7rem);
+    bottom: 100%;
+    z-index: 2;
+    width: clamp(4.25rem, 7vw, 5.75rem);
+    translate: 0 15%;
+  }
+
+  /* Tempat hinggap Tilik (TilikPerch): tersembunyi sampai TilikGuide memberinya data-here. */
+  .tilik-perch {
+    aspect-ratio: 1;
     visibility: hidden;
   }
 
-  .tilik-footer-spot[data-phase='footer'] {
+  .tilik-perch[data-here] {
     visibility: visible;
   }
 
-  .tilik-footer-spot__btn {
+  .tilik-perch__btn {
     display: block;
     width: 100%;
     height: 100%;
@@ -1455,17 +1472,17 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  .tilik-footer-spot__btn .tilik-mascot {
+  .tilik-perch__btn .tilik-mascot {
     width: 100%;
     height: 100%;
   }
 
-  .tilik-footer-spot[data-phase='footer'] .tilik-footer-spot__btn {
+  .tilik-perch[data-here] .tilik-perch__btn {
     animation: tilik-land 640ms var(--ease-out) both;
   }
 
   /* Gelembung di atas Tilik, condong ke kiri agar tidak keluar layar di HP. */
-  .tilik-footer-spot__say {
+  .tilik-perch__say {
     position: absolute;
     right: 40%;
     bottom: calc(100% + 0.25rem);
@@ -1486,7 +1503,7 @@
     pointer-events: none;
   }
 
-  .tilik-footer-spot[data-saying] .tilik-footer-spot__say {
+  .tilik-perch[data-saying] .tilik-perch__say {
     opacity: 1;
     transform: none;
   }
@@ -1535,13 +1552,40 @@
   @media (prefers-reduced-motion: reduce) {
     .tilik-guide__slot,
     .tilik-guide__hop,
-    .tilik-footer-spot__btn {
+    .tilik-perch__btn {
       animation: none !important;
     }
 
     .tilik-guide__bubble {
       transition: none;
     }
+  }
+}
+
+/* Video demo di beranda: bingkai, tombol suara di atas cuplikan, dan daftar bab. */
+@layer components {
+  .video-tour-frame {
+    border: 1px solid var(--color-line);
+    box-shadow: 0 30px 70px -36px rgb(36 41 31 / 0.45);
+    isolation: isolate;
+  }
+
+  /* Tombol utama berwarna aksi di pojok kanan bawah cuplikan. */
+  .video-tour-sound {
+    position: absolute;
+    right: clamp(0.75rem, 2.2vw, 1.25rem);
+    bottom: clamp(0.75rem, 2.2vw, 1.25rem);
+    box-shadow: 0 10px 28px -12px rgb(36 41 31 / 0.55);
+  }
+
+  .video-tour-chapter {
+    cursor: pointer;
+    transition: background-color 180ms ease;
+  }
+
+  .video-tour-chapter:hover,
+  .video-tour-chapter[aria-current] {
+    background: rgb(255 255 255 / 0.55);
   }
 }
 
