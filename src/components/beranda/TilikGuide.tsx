@@ -5,17 +5,20 @@ import { createPortal } from 'react-dom';
 import { TilikMascot, type TilikMood } from '@/components/asisten/TilikMascot';
 import { cn } from '@/lib/cn';
 import { TILIK_FOOTER_SPOT_ID } from './TilikFooterSpot';
+import { TILIK_VIDEO_SPOT_ID } from './VideoTour';
 
 /*
  * Tilik di beranda. Selama tempatnya di samping gelembung belum terlihat, Tilik mengintip dari
  * tepi kiri layar dan ikut turun lebih lambat daripada halaman. Begitu tempatnya naik sampai
  * LAND_AT, Tilik melompat ke sana. Kalau halaman digulir balik, Tilik melompat lagi ke tepi.
- * Kalau digulir terus sampai tempatnya hampir hilang di atas, Tilik melompat turun ke teras footer.
+ * Digulir terus sampai video naik, Tilik melompat ke tepi atas bingkai video. Setelah videonya
+ * hampir lewat, Tilik melompat turun lagi ke teras footer. Arah sebaliknya juga berlaku.
+ * Tanpa video, Tilik melompat langsung dari tempatnya ke footer.
  *
  * Tanpa JavaScript atau dengan gerak dikurangi, Tilik langsung duduk di tempatnya.
  */
 
-type Phase = 'peek' | 'flying-in' | 'landed' | 'flying-out' | 'flying-down' | 'footer' | 'flying-up';
+type Phase = 'peek' | 'flying-in' | 'landed' | 'flying-out' | 'flying-down' | 'video' | 'footer' | 'flying-up';
 type Box = { cx: number; cy: number; scale: number; rot: number };
 
 /** Pecahan tinggi layar. Tengah tempat Tilik harus naik sampai LAND_AT agar Tilik melompat masuk. */
@@ -32,6 +35,16 @@ const FLIGHT_MS = 820;
 const LEAVE_TOP = 96;
 /** dan naik lagi dari footer bila tepi atas tempatnya turun lewat ini. */
 const BACK_TOP = 220;
+/** Tilik meninggalkan video saat tepi bawah bingkainya naik melewati pecahan tinggi layar ini, */
+const VIDEO_LEAVE_AT = 0.35;
+/** dan kembali ke video bila tepi bawah itu turun lagi sampai sini. */
+const VIDEO_BACK_AT = 0.55;
+
+/** Tempat hinggap dan fase Tilik saat berada di sana. */
+const PERCHES = [
+  { id: TILIK_VIDEO_SPOT_ID, phase: 'video' },
+  { id: TILIK_FOOTER_SPOT_ID, phase: 'footer' },
+] as const;
 
 const SLOT_LINES: ReactNode[] = [
   <>
@@ -124,8 +137,9 @@ export function TilikGuide({ className }: { className?: string }) {
       phaseRef.current = next;
       root.dataset.phase = next;
       flyer.dataset.phase = next;
-      const spot = document.getElementById(TILIK_FOOTER_SPOT_ID);
-      if (spot) spot.dataset.phase = next;
+      for (const perch of PERCHES) {
+        document.getElementById(perch.id)?.toggleAttribute('data-here', next === perch.phase);
+      }
     };
 
     const atBottom = (margin: number) =>
@@ -161,8 +175,8 @@ export function TilikGuide({ className }: { className?: string }) {
       };
     };
 
-    const footerBox = (): Box | null => {
-      const spot = document.getElementById(TILIK_FOOTER_SPOT_ID);
+    const perchBox = (id: string): Box | null => {
+      const spot = document.getElementById(id);
       if (!spot) return null;
       const rect = spot.getBoundingClientRect();
       return {
@@ -171,6 +185,40 @@ export function TilikGuide({ className }: { className?: string }) {
         scale: rect.width / size,
         rot: 0,
       };
+    };
+    const footerBox = () => perchBox(TILIK_FOOTER_SPOT_ID);
+    const videoBox = () => perchBox(TILIK_VIDEO_SPOT_ID);
+
+    /** Kedudukan video terhadap layar, atau null bila beranda tidak memuat video. */
+    const videoState = () => {
+      const spot = document.getElementById(TILIK_VIDEO_SPOT_ID);
+      const frameBox = spot?.parentElement?.getBoundingClientRect();
+      if (!spot || !frameBox) return null;
+      const vh = window.innerHeight;
+      const rect = spot.getBoundingClientRect();
+      const center = rect.top + rect.height / 2;
+      return {
+        /** Tempat hinggap sudah naik cukup tinggi untuk dilompati. */
+        reached: center < vh * LAND_AT,
+        /** Tempat hinggap turun lagi ke dasar layar: kembali ke samping gelembung. */
+        gone: center >= vh * RETURN_AT,
+        /** Video hampir lewat: saatnya ke footer. */
+        past: frameBox.bottom < vh * VIDEO_LEAVE_AT || atBottom(4),
+        /** Video terlihat lagi saat digulir balik dari footer. */
+        back: frameBox.bottom > vh * VIDEO_BACK_AT && !atBottom(120),
+      };
+    };
+
+    /** Tempat Tilik seharusnya duduk bila tidak sempat melompat (halaman dibuka atau digulir jauh sekaligus). */
+    const restingPhase = (): Phase => {
+      const hasFooter = Boolean(footerBox());
+      const video = videoState();
+      if (video) {
+        if (hasFooter && video.past) return 'footer';
+        return video.reached ? 'video' : 'landed';
+      }
+      const rect = slot.getBoundingClientRect();
+      return hasFooter && (rect.top < LEAVE_TOP || atBottom(4)) ? 'footer' : 'landed';
     };
 
     // Saat mengintip, kemiringan dipegang lapisan dalam (lewat CSS) agar gelembung ucapan tetap tegak.
@@ -218,6 +266,8 @@ export function TilikGuide({ className }: { className?: string }) {
         setPeekMood('idle');
         setPhase(end);
         afterLanding?.();
+        // Halaman mungkin sudah digulir lebih jauh selama Tilik melayang.
+        schedule();
       };
       flight = requestAnimationFrame(step);
     };
@@ -245,19 +295,37 @@ export function TilikGuide({ className }: { className?: string }) {
         if (center > vh * LAND_AT) {
           place(peekBox(), false);
         } else if (rect.bottom < 0) {
-          setPhase(footer ? 'footer' : 'landed');
+          setPhase(restingPhase());
         } else {
           fly('flying-in', peekBox, slotBox, 'landed', 360);
         }
-      } else if (phase === 'landed') {
+        return;
+      }
+
+      const video = videoState();
+      const toFooter = () => footerBox() ?? slotBox();
+      const toVideo = () => videoBox() ?? slotBox();
+
+      if (phase === 'landed') {
         if (center >= vh * RETURN_AT) {
           fly('flying-out', slotBox, peekBox, 'peek', -360, backToPeek);
+        } else if (video) {
+          if (video.reached && video.past && footer) fly('flying-down', slotBox, toFooter, 'footer', 360);
+          else if (video.reached) fly('flying-down', slotBox, toVideo, 'video', 360);
         } else if (footer && (rect.top < LEAVE_TOP || atBottom(4))) {
           if (rect.bottom < 0) setPhase('footer');
-          else fly('flying-down', slotBox, () => footerBox() ?? slotBox(), 'footer', 360);
+          else fly('flying-down', slotBox, toFooter, 'footer', 360);
         }
-      } else if (phase === 'footer' && rect.top > BACK_TOP && !atBottom(120)) {
-        fly('flying-up', () => footerBox() ?? slotBox(), slotBox, 'landed', -360);
+      } else if (phase === 'video') {
+        if (!video || video.gone) fly('flying-up', toVideo, slotBox, 'landed', -360);
+        else if (footer && video.past) fly('flying-down', toVideo, toFooter, 'footer', 360);
+      } else if (phase === 'footer') {
+        if (video) {
+          if (video.back && video.gone) fly('flying-up', toFooter, slotBox, 'landed', -360);
+          else if (video.back) fly('flying-up', toFooter, toVideo, 'video', -360);
+        } else if (rect.top > BACK_TOP && !atBottom(120)) {
+          fly('flying-up', toFooter, slotBox, 'landed', -360);
+        }
       }
     };
 
@@ -273,10 +341,8 @@ export function TilikGuide({ className }: { className?: string }) {
     };
 
     const firstRect = slot.getBoundingClientRect();
-    if (firstRect.top < LEAVE_TOP && footerBox()) {
-      setPhase('footer');
-    } else if (firstRect.top + firstRect.height / 2 <= window.innerHeight * LAND_AT) {
-      setPhase('landed');
+    if (firstRect.top + firstRect.height / 2 <= window.innerHeight * LAND_AT) {
+      setPhase(restingPhase());
     } else {
       setPhase('peek');
       place(peekBox(), false);
@@ -292,8 +358,7 @@ export function TilikGuide({ className }: { className?: string }) {
       cancelAnimationFrame(flight);
       window.clearTimeout(enterTimer);
       delete root.dataset.phase;
-      const spot = document.getElementById(TILIK_FOOTER_SPOT_ID);
-      if (spot) delete spot.dataset.phase;
+      for (const perch of PERCHES) document.getElementById(perch.id)?.removeAttribute('data-here');
       phaseRef.current = 'landed';
     };
   }, [enabled]);

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Footer } from '@/components/Footer';
 import { ExampleResult } from '@/components/beranda/ExampleResult';
 import { StepCards } from '@/components/beranda/StepCards';
+import { VideoTour } from '@/components/beranda/VideoTour';
 import { Icon } from '@/components/icons/icon';
 import { Navbar } from '@/components/Navbar';
 import { ButtonLink } from '@/components/ui/button';
@@ -58,6 +59,7 @@ export default function HomePage() {
 
         <StepCards />
         <ExampleResult />
+        <VideoTour />
       </main>
       <Footer illustrated />
     </div>
