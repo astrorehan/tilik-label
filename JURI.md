@@ -2,9 +2,8 @@
 
 Dibaca dalam tiga menit. Mencobanya tidak butuh akun, tidak butuh memasang apa pun, dan tidak butuh kemasan sungguhan.
 
-- **Situs:** _[diisi setelah rilis]_
-- **Mode juri:** _[situs]/juri_
-- **Video demo:** _[diisi setelah unggah]_
+- **Situs:** [tilik-label.vercel.app](https://tilik-label.vercel.app) (tanpa login, jadi tidak ada akun demo)
+- **Mode juri:** [tilik-label.vercel.app/juri](https://tilik-label.vercel.app/juri)
 - **README lengkap:** [README.md](README.md)
 - **Cabang:** Web Development, subtema Ekonomi dan Pemberdayaan Masyarakat
 
@@ -23,7 +22,7 @@ Tilik Label membaca foto stiker kemasan, lalu memeriksanya:
 
 ## Yang bisa dicoba (lima menit)
 
-Buka **[situs]/juri**, lalu pilih salah satu kemasan contoh.
+Buka **[tilik-label.vercel.app/juri](https://tilik-label.vercel.app/juri)**, lalu pilih salah satu kemasan contoh.
 
 | Langkah | Yang dilakukan | Yang seharusnya terlihat |
 |---|---|---|

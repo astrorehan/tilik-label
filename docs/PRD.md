@@ -317,7 +317,7 @@ Pembagian tugas diisi tim.
 - Nama aplikasi: **Tilik Label** (menggantikan nama kerja *Cek Label*).
 - Cakupan fitur tambahan: `F-11` ("Produk saya" di perangkat) naik ke P0, `F-09` menyertakan minimal satu contoh jebakan lengkap-di-permukaan, dan ditambah `F-14` (asisten tanya jawab temuan terpagar) pada prioritas P1.
 - Model utama pembaca foto (`F-03`) & asisten tanya jawab (`F-14`): **DeepSeek-V4.1-Flash-1017** (`deepseek-flash`) di server, dengan **Claude Haiku 5.5** (`claude-haiku-5-5`) sebagai model percobaan/pembanding, dilindungi batas pemanggilan dan batas belanja (`F-12`).
-- Tim pengembang: Muhammad Raihan Surya, Muhammad Choiruddin Ammar, Ahmad Rafi Firdaus (pembagian peran resmi menyusul).
+- Tim pengembang: Muhammad Raihan Surya, Muhammad Choirudin Ammar, Ahmad Rafi Firdaus (pembagian peran resmi menyusul).
 
 **Masih terbuka:**
 1. Batas belanja harian/total pada akun penyedia model (`F-12`).

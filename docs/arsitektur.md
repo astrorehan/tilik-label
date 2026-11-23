@@ -19,7 +19,7 @@ flowchart TB
   end
   subgraph Penyedia
     DS[DeepSeek V4.1 Flash]
-    HK[Claude Haiku 5.5]
+    HK[Claude Haiku 5.5<br/>opsional, tidak aktif di rilis]
   end
   UI --> IMG --> BACA
   UI <--> DOM
@@ -53,7 +53,7 @@ Batas modul dijaga sesuai [CONTRIBUTING.md](../CONTRIBUTING.md): `src/domain/` t
 
 1. **Di peramban**, `src/lib/image/quality.ts` menilai ketajaman dan terang gambar, lalu `prepareImage.ts` mengecilkannya ke sisi terpanjang 1600 px. Berkas yang diterima: JPEG, PNG, WebP.
 2. **Di server**, route menolak permintaan peramban dari situs lain, membatasi badan permintaan sekitar 6,5 MB, dan mengecek kuota pengunjung.
-3. `src/lib/server/labelReader.ts` mencoba penyedia sesuai `LLM_PROVIDER` (bawaan `deepseek`), lalu penyedia satunya bila gagal atau kuncinya kosong. Keluaran diminta dalam skema JSON `EXTRACTION_JSON_SCHEMA`.
+3. `src/lib/server/labelReader.ts` mencoba penyedia sesuai `LLM_PROVIDER` (bawaan `deepseek`), lalu penyedia satunya bila gagal dan kuncinya terisi. Di situs rilis hanya kunci DeepSeek yang diisi. Keluaran diminta dalam skema JSON `EXTRACTION_JSON_SCHEMA`.
 4. `validateExtraction` di `src/domain/labelExtraction.ts` memeriksa bentuk jawaban. Jawaban yang tidak sesuai ditolak, dan pengguna diarahkan mengisi sendiri (`arahan: 'isi_manual'`).
 5. Gambar tidak disimpan. Respons selalu `Cache-Control: no-store`.
 
