@@ -26,9 +26,8 @@ Pemeriksa label kemasan untuk pembuat makanan rumahan. Pengguna memotret stiker 
 | | |
 |---|---|
 | **Panduan untuk juri** | **[JURI.md](JURI.md)** |
-| **Situs** (tanpa akun) | **_[diisi setelah rilis]_** |
-| **Mode juri** (tiga kemasan contoh, tiap langkah bisa diisi sekali klik) | **_[situs]/juri_** |
-| **Video demo** (YouTube, unlisted) | **_[diisi setelah unggah]_** |
+| **Situs** (tanpa login, tidak perlu akun demo) | **[tilik-label.vercel.app](https://tilik-label.vercel.app)** |
+| **Mode juri** (tiga kemasan contoh, tiap langkah bisa diisi sekali klik) | **[tilik-label.vercel.app/juri](https://tilik-label.vercel.app/juri)** |
 | **Dokumen kebutuhan produk** | [docs/PRD.md](docs/PRD.md) |
 | **Dokumentasi teknis** | [docs/](docs/README.md) |
 | **Repositori** | [github.com/astrorehan/tilik-label](https://github.com/astrorehan/tilik-label) |
@@ -39,7 +38,8 @@ Pemeriksa label kemasan untuk pembuat makanan rumahan. Pengguna memotret stiker 
 **[Aturan yang diperiksa](#aturan-yang-diperiksa)** ·
 **[Teknologi](#teknologi-apa-dipakai-di-mana)** ·
 **[Cek sendiri](#cek-sendiri)** ·
-**[Jalankan di komputer sendiri](#jalankan-di-komputer-sendiri)**
+**[Jalankan di komputer sendiri](#jalankan-di-komputer-sendiri)** ·
+**[Penggunaan AI](#penggunaan-ai-template-dan-aset)**
 
 </div>
 
@@ -102,7 +102,7 @@ flowchart LR
 | Langkah | Yang terjadi | Di mana |
 |---|---|---|
 | 1. Foto | Mutu gambar dicek dan gambar dikecilkan ke sisi terpanjang 1600 px di peramban | `src/lib/image/` |
-| 2. Baca | Server mengirim gambar ke penyedia utama (DeepSeek), lalu ke penyedia cadangan (Claude Haiku) bila gagal. Jawaban divalidasi dengan skema JSON | `src/app/api/baca-label/`, `src/lib/server/labelReader.ts`, `src/domain/labelExtraction.ts` |
+| 2. Baca | Server mengirim gambar ke DeepSeek V4.1 Flash. Jawaban divalidasi dengan skema JSON; bila gagal, pengguna diarahkan mengisi sendiri | `src/app/api/baca-label/`, `src/lib/server/labelReader.ts`, `src/domain/labelExtraction.ts` |
 | 3. Cocokkan | Pengguna membetulkan isian. Draf tersimpan otomatis di perangkat | `src/components/periksa/`, `src/lib/periksaDraft.ts` |
 | 4. Periksa | Fungsi murni tanpa jaringan menilai tiap aturan | `src/domain/labelRules.ts`, `src/domain/permitRules.ts` |
 | 5. Perbaiki | Label perbaikan disusun dari isian dan jawaban, lalu diperiksa ulang tiap kali ada perubahan | `src/domain/correctedLabel.ts`, `src/domain/labelPrintScale.ts` |
@@ -138,11 +138,11 @@ Daftar lengkap, pasal, cara cek, dan berkas kodenya ada di [docs/aturan.md](docs
 
 | Teknologi | Di mana | Dipakai untuk |
 |---|---|---|
-| **Next.js 16** (App Router), **React 19** | `src/app/` | Halaman, route server `/api/baca-label` dan `/api/asisten`, halaman cetak |
+| **Next.js 16** (App Router), **React 19** | `src/app/` | Halaman, route server `/api/baca-label`, `/api/baca-resep`, `/api/asisten`, dan `/api/mcp`, halaman cetak |
 | **TypeScript** mode ketat | seluruh repo | Tipe data label, jawaban, dan hasil aturan di `src/domain/types.ts` |
 | **Tailwind CSS 4** | `src/app/globals.css`, `src/components/` | Token warna, tata letak 360–1440 px, mode cetak |
-| **DeepSeek V4.1 Flash** (`deepseek-flash`) | `src/lib/server/labelReader.ts`, `src/lib/server/assistant.ts` | Penyedia utama pembaca foto dan asisten, mode non-thinking |
-| **Claude Haiku 5.5** (`claude-haiku-5-5`) lewat `@anthropic-ai/sdk` | idem | Penyedia cadangan bila penyedia utama gagal atau kuncinya kosong |
+| **DeepSeek V4.1 Flash** (`deepseek-flash`) | `src/lib/server/labelReader.ts`, `src/lib/server/assistant.ts` | Satu-satunya model AI yang aktif di situs rilis: pembaca foto label, pembaca foto resep, dan asisten Tanya Tilik (mode non-thinking) |
+| Claude Haiku 5.5 (`claude-haiku-5-5`), opsional | idem | Slot penyedia cadangan lewat `LLM_HAIKU_API_KEY` untuk percobaan dan pembanding. **Tidak diaktifkan di situs rilis** (kuncinya tidak diisi) |
 | **Vitest 5** | `src/**/__tests__/`, `src/app/api/**/route.test.ts` | 715 tes unit untuk aturan, label perbaikan, pembaca foto, asisten, batas pemanggilan |
 | **ESLint 9** | `eslint.config.mjs` | Pemeriksaan gaya dan aturan React |
 | **GitHub Actions** | `.github/workflows/ci.yml` | Lint, tipe, tes, dan build di setiap PR dan push ke `main` |
@@ -158,7 +158,7 @@ Tidak ada basis data, tidak ada akun, dan tidak ada penyimpanan foto di server.
 - **Kunci API hanya di server.** Peramban tidak pernah menerima kunci; semua panggilan model lewat route di `src/app/api/`.
 - **Foto tidak disimpan.** Gambar diteruskan ke penyedia model untuk dibaca, lalu dibuang. Kalimat ini juga tampil di layar unggah.
 - **Batas per pengunjung** (`src/lib/server/rateLimit.ts`). Bawaannya 10 pembacaan foto per jam dan 30 per hari per alamat IP, ditambah batas harian seluruh pengunjung yang terpisah untuk pembaca foto dan asisten. Permintaan peramban dari situs lain ditolak. Angkanya bisa diubah lewat `LLM_BATAS_*` (lihat `.env.example`).
-- **Batas belanja di akun penyedia** sebagai pengaman terakhir: batas bulanan workspace di Console Anthropic, dan saldo secukupnya di DeepSeek.
+- **Batas belanja di akun penyedia** sebagai pengaman terakhir: saldo secukupnya di akun DeepSeek.
 - **Saat batas tercapai atau model gagal,** pengguna mendapat pesan beserta waktu tunggu dan tetap bisa mengisi label sendiri lalu mendapat hasil pemeriksaan penuh.
 
 Penghitung batas memakai memori proses. Di platform serverless, tiap instans punya penghitung sendiri dan penghitung itu hilang saat instans dimulai ulang, jadi batas per pengunjung adalah rem pertama, bukan jaminan.
@@ -196,7 +196,7 @@ Butuh Node.js 22 atau lebih baru.
 git clone https://github.com/astrorehan/tilik-label.git
 cd tilik-label
 npm ci
-cp .env.example .env.local   # isi LLM_DEEPSEEK_API_KEY dan/atau LLM_HAIKU_API_KEY
+cp .env.example .env.local   # isi LLM_DEEPSEEK_API_KEY
 npm run dev                  # http://localhost:3000
 ```
 
@@ -229,7 +229,14 @@ docs/           PRD dan dokumentasi teknis
 
 ---
 
-## Penggunaan template dan aset
+## Penggunaan AI, template, dan aset
+
+Sesuai ketentuan IT RUSH 2026 (Guidebook bagian V butir 5), berikut semua AI, template, dan aset pihak lain yang dipakai.
+
+| Yang dipakai | Peran | Batasannya |
+|---|---|---|
+| **DeepSeek V4.1 Flash** (API DeepSeek) | Komponen produk: membaca foto label dan foto resep ke kolom isian, serta menjelaskan temuan di Tanya Tilik | Lolos atau tidaknya label diputuskan aturan di `src/domain`, bukan oleh model. Keluaran divalidasi skema dan wajib dicocokkan pengguna. Asisten dikunci pada hasil pemeriksaan dan tidak bisa mengubah status temuan |
+| **Claude** (Anthropic) | AI coding assistant untuk pengembangan: membantu menulis kode, merancang antarmuka (UI), *brainstorming* ide dan fitur, serta menyusun alur aplikasi | Bukan bagian dari produk. Setiap kode dan saran ditinjau, disesuaikan, dan diuji tim (lint, typecheck, tes unit, uji di peramban) sebelum digabung. Keputusan desain, alur, dan fitur tetap di tangan tim |
 
 - Komponen antarmuka dasar (`src/components/ui`, ikon, dan token warna) diadaptasi dari proyek tim sebelumnya.
 - Font [Atkinson Hyperlegible Next](https://github.com/googlefonts/atkinson-hyperlegible-next), Atkinson Hyperlegible Mono, dan [Mona Sans](https://github.com/github/mona-sans) berlisensi SIL Open Font License. Teks lisensinya ada di `src/app/fonts/`.
@@ -239,10 +246,10 @@ docs/           PRD dan dokumentasi teknis
 
 ## Tim
 
-| Nama | Peran |
-|---|---|
-| Muhammad Raihan Surya | _[diisi tim]_ |
-| Muhammad Choiruddin Ammar | _[diisi tim]_ |
-| Ahmad Rafi Firdaus | _[diisi tim]_ |
+Tim **Inilah 4 Trio**, Universitas Gadjah Mada:
+
+- Muhammad Raihan Surya (ketua)
+- Ahmad Rafi Firdaus
+- Muhammad Choirudin Ammar
 
 Karya ini disiapkan untuk **IT RUSH 2026**, cabang Web Development, subtema Ekonomi dan Pemberdayaan Masyarakat.
